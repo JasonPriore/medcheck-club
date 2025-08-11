@@ -33,6 +33,7 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [uploadedFile, setUploadedFile] = useState<{ name: string; type: string } | null>(null)
   const [isUploadComplete, setIsUploadComplete] = useState(false)
+  const [localFileData, setLocalFileData] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   if (!player) return null
@@ -111,6 +112,9 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
           onUpdatePlayer(player.id, updates)
         }
 
+        // Immediately reflect the uploaded file locally to avoid any flicker
+        setLocalFileData(fileData)
+
         clearInterval(progressInterval)
         setUploadProgress(100)
 
@@ -142,10 +146,12 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
   }
 
   const handleDownloadCertificate = () => {
-    if (player.medical_certificate && player.medical_certificate_name) {
+    const data = player.medical_certificate || localFileData
+    const name = player.medical_certificate_name || uploadedFile?.name
+    if (data && name) {
       const link = document.createElement("a")
-      link.href = player.medical_certificate
-      link.download = player.medical_certificate_name
+      link.href = data
+      link.download = name
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -153,8 +159,9 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
   }
 
   const handlePreviewCertificate = () => {
-    if (player.medical_certificate) {
-      window.open(player.medical_certificate, "_blank")
+    const data = player.medical_certificate || localFileData
+    if (data) {
+      window.open(data, "_blank")
     }
   }
 
@@ -265,7 +272,7 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
               </div>
 
               <div className="p-4 sm:p-6">
-                {player.medical_certificate ? (
+                {(player.medical_certificate || localFileData) ? (
                   <>
                     <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-green-50 border border-green-200 rounded-xl mb-4">
                       <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -274,9 +281,9 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <p className="text-green-800 font-semibold text-sm sm:text-base truncate">
-                            {player.medical_certificate_name}
+                            {player.medical_certificate_name || uploadedFile?.name}
                           </p>
-                          {isUploadComplete && (
+                          {(isUploadComplete || !!(player.medical_certificate || localFileData)) && (
                             <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Caricato
@@ -284,7 +291,7 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
                           )}
                         </div>
                         <p className="text-green-600 text-xs sm:text-sm">
-                          {player.medical_certificate_type === "application/pdf" ? "📄 Documento PDF" : "🖼️ Immagine"}
+                          {(player.medical_certificate_type || uploadedFile?.type) === "application/pdf" ? "📄 Documento PDF" : "🖼️ Immagine"}
                         </p>
                       </div>
                     </div>
@@ -328,7 +335,7 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
                       )}
                     </div>
 
-                    {!player.visit_completed && isUploadComplete && (
+                    {!player.visit_completed && !!(player.medical_certificate || localFileData) && (
                       <div className="pt-4 border-t border-gray-200">
                         <Button
                           onClick={handleMarkUploadComplete}

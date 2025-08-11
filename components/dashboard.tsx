@@ -10,7 +10,7 @@ import { PlayerDialog } from "@/components/player-dialog"
 import { CalendarView } from "@/components/calendar-view"
 import { ListView } from "@/components/list-view"
 import { VisitStatusDialog } from "@/components/visit-status-dialog"
-import { getPlayers, signOut, markVisitCompleted, markVisitIncomplete } from "@/lib/local-storage"
+import { getPlayers, signOut, markVisitCompleted, markVisitIncomplete, updatePlayer } from "@/lib/local-storage"
 
 interface User {
   id: string
@@ -36,6 +36,9 @@ interface Player {
   visit_completed?: boolean
   visit_completed_date?: string
   status: "valid" | "expiring_soon" | "expired"
+  medical_certificate?: string
+  medical_certificate_name?: string
+  medical_certificate_type?: string
 }
 
 interface DashboardProps {
@@ -159,6 +162,21 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
   const openVisitStatusDialog = (player: Player) => {
     setVisitStatusPlayer(player)
     setIsVisitStatusDialogOpen(true)
+  }
+
+  const handleUpdatePlayer = async (
+    playerId: string,
+    updates: Partial<Player>
+  ) => {
+    try {
+      await updatePlayer(playerId, updates)
+      // Update currently open dialog player immediately for responsive UI
+      setVisitStatusPlayer((prev) => (prev && prev.id === playerId ? { ...prev, ...updates } : prev))
+      // Refresh lists
+      fetchPlayers()
+    } catch (error) {
+      console.error("Error updating player:", error)
+    }
   }
 
   if (loading) {
@@ -441,8 +459,7 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
           setVisitStatusPlayer(null)
         }}
         player={visitStatusPlayer}
-        onMarkCompleted={handleMarkCompleted}
-        onMarkIncomplete={handleMarkIncomplete}
+        onUpdatePlayer={handleUpdatePlayer}
       />
     </div>
   )

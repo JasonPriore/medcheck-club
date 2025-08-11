@@ -21,6 +21,10 @@ interface Player {
   team_id: string
   visit_completed?: boolean
   visit_completed_date?: string
+  // Added certificate fields for upload/view/download support
+  medical_certificate?: string
+  medical_certificate_name?: string
+  medical_certificate_type?: string
 }
 
 // Demo data
