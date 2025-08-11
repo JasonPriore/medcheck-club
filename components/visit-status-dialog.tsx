@@ -10,11 +10,14 @@ import { Calendar, Phone, Mail, Clock, User, X, FileText, Download, Upload, Eye,
 interface Player {
   id: string
   name: string
-  birth_date: string
-  phone?: string
-  email?: string
+  email: string
+  phone: string
+  position: string
+  medical_exam_date: string
   medical_expiry_date: string
-  visit_completed: boolean
+  team_id: string
+  visit_completed?: boolean
+  visit_completed_date?: string
   medical_certificate?: string
   medical_certificate_name?: string
   medical_certificate_type?: string
@@ -35,6 +38,7 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
   const [isUploadComplete, setIsUploadComplete] = useState(false)
   const [localFileData, setLocalFileData] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
 
   if (!player) return null
 
@@ -161,7 +165,7 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
   const handlePreviewCertificate = () => {
     const data = player.medical_certificate || localFileData
     if (data) {
-      window.open(data, "_blank")
+      setIsPreviewOpen(true)
     }
   }
 
@@ -172,14 +176,8 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
           <DialogHeader className="relative bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 sm:p-6">
-            <button
-              onClick={onClose}
-              className="absolute right-4 top-4 text-white/80 hover:text-white transition-colors"
-            >
-              <X className="h-5 w-5 sm:h-6 sm:w-6" />
-            </button>
 
-            <div className="flex items-center gap-3 sm:gap-4 pr-8">
+            <div className="flex items-center gap-3 sm:gap-4 pr-12 sm:pr-14">
               <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
                 <User className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
               </div>
@@ -213,9 +211,9 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
                       <Calendar className="h-4 w-4 text-blue-600" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-gray-600 text-xs sm:text-sm">Data di nascita</p>
+                      <p className="text-gray-600 text-xs sm:text-sm">Data visita medica</p>
                       <p className="text-gray-900 font-semibold text-sm sm:text-base truncate">
-                        {formatDate(player.birth_date)}
+                        {formatDate(player.medical_exam_date)}
                       </p>
                     </div>
                   </div>
@@ -440,6 +438,42 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
               className="w-full h-11 sm:h-12 bg-green-600 hover:bg-green-700 text-white"
             >
               Continua
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview Modal */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="w-[95vw] max-w-3xl h-[85vh] p-3 sm:p-4">
+          <div className="w-full h-full rounded-lg overflow-hidden bg-white">
+            {(() => {
+              const data = player.medical_certificate || localFileData
+              const type = player.medical_certificate_type || uploadedFile?.type || ""
+              if (type === "application/pdf") {
+                return (
+                  <iframe
+                    title="Anteprima Certificato"
+                    src={data || ""}
+                    className="w-full h-full"
+                  />
+                )
+              }
+              return (
+                <img
+                  alt="Anteprima Certificato"
+                  src={data || ""}
+                  className="w-full h-full object-contain bg-gray-50"
+                />
+              )
+            })()}
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={handleDownloadCertificate} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+              Scarica
+            </Button>
+            <Button onClick={() => setIsPreviewOpen(false)} variant="outline" className="flex-1">
+              Chiudi
             </Button>
           </div>
         </DialogContent>

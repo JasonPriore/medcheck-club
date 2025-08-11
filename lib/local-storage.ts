@@ -1,6 +1,12 @@
 interface User {
   id: string
   email: string
+  organization_name?: string
+  organization_logo?: string
+  subscription_plan: "base" | "plus" | "custom"
+  subscription_start_date: string
+  subscription_end_date: string
+  subscription_price: number
 }
 
 interface Team {
@@ -29,7 +35,15 @@ interface Player {
 
 // Demo data
 const DEMO_USERS: User[] = [
-  { id: 'demo-user-1', email: 'demo@medcheckclub.com' }
+  { 
+    id: 'demo-user-1', 
+    email: 'demo@medcheckclub.com',
+    organization_name: 'MedCheck Club Demo',
+    subscription_plan: 'plus',
+    subscription_start_date: '2024-01-01T00:00:00Z',
+    subscription_end_date: '2024-12-31T23:59:59Z',
+    subscription_price: 200
+  }
 ]
 
 const DEMO_TEAMS: Team[] = [
@@ -340,6 +354,29 @@ const DEMO_PLAYERS: Player[] = [
 
 // Initialize demo data if not exists
 export function initializeDemoData() {
+  // Clear any corrupted data first
+  try {
+    const users = JSON.parse(localStorage.getItem('medcheck_users') || '[]')
+    const hasValidUsers = users.every((user: any) => 
+      user.id && user.email && user.subscription_plan && 
+      SUBSCRIPTION_LIMITS[user.subscription_plan as keyof typeof SUBSCRIPTION_LIMITS]
+    )
+    
+    if (!hasValidUsers) {
+      // Clear corrupted data and start fresh
+      localStorage.removeItem('medcheck_users')
+      localStorage.removeItem('medcheck_teams')
+      localStorage.removeItem('medcheck_players')
+      localStorage.removeItem('medcheck_current_user')
+    }
+  } catch (error) {
+    // Clear all data if parsing fails
+    localStorage.removeItem('medcheck_users')
+    localStorage.removeItem('medcheck_teams')
+    localStorage.removeItem('medcheck_players')
+    localStorage.removeItem('medcheck_current_user')
+  }
+
   if (!localStorage.getItem('medcheck_users')) {
     localStorage.setItem('medcheck_users', JSON.stringify(DEMO_USERS))
   }
@@ -348,6 +385,27 @@ export function initializeDemoData() {
   }
   if (!localStorage.getItem('medcheck_players')) {
     localStorage.setItem('medcheck_players', JSON.stringify(DEMO_PLAYERS))
+  }
+  
+  // Ensure all existing users have required subscription fields
+  try {
+    const users = JSON.parse(localStorage.getItem('medcheck_users') || '[]')
+    const updatedUsers = users.map((user: any) => {
+      if (!user.subscription_plan) {
+        return {
+          ...user,
+          organization_name: user.organization_name || 'Nuovo Club',
+          subscription_plan: 'base',
+          subscription_start_date: user.subscription_start_date || new Date().toISOString(),
+          subscription_end_date: user.subscription_end_date || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          subscription_price: user.subscription_price || 80
+        }
+      }
+      return user
+    })
+    localStorage.setItem('medcheck_users', JSON.stringify(updatedUsers))
+  } catch (error) {
+    console.error('Error updating user data:', error)
   }
 }
 
@@ -386,7 +444,12 @@ export function signUp(email: string, password: string): Promise<{ user: User | 
       } else {
         const newUser: User = {
           id: `user-${Date.now()}`,
-          email
+          email,
+          organization_name: 'Nuovo Club',
+          subscription_plan: 'base',
+          subscription_start_date: new Date().toISOString(),
+          subscription_end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          subscription_price: 80
         }
         users.push(newUser)
         localStorage.setItem('medcheck_users', JSON.stringify(users))
@@ -568,5 +631,125 @@ export function getExpiringPlayers(): Promise<Player[]> {
       
       resolve(expiringPlayers)
     }, 500)
+  })
+}
+
+// Subscription limits
+export const SUBSCRIPTION_LIMITS = {
+  base: { teams: 2, players: 50, price: 80 },
+  plus: { teams: 5, players: 100, price: 200 },
+  custom: { teams: -1, players: -1, price: 0 } // Unlimited
+}
+
+// Check if user can add more teams
+export function canAddTeam(userId: string): Promise<{ canAdd: boolean; currentTeams: number; maxTeams: number; error: string | null }> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      try {
+        const users = JSON.parse(localStorage.getItem('medcheck_users') || '[]')
+        const user = users.find((u: User) => u.id === userId)
+        if (!user) {
+          resolve({ canAdd: false, currentTeams: 0, maxTeams: 0, error: 'User not found' })
+          return
+        }
+
+        // Ensure user has valid subscription plan
+        if (!user.subscription_plan || !SUBSCRIPTION_LIMITS[user.subscription_plan as keyof typeof SUBSCRIPTION_LIMITS]) {
+          // Default to base plan if invalid
+          user.subscription_plan = 'base'
+          user.subscription_price = 80
+          // Update user in storage
+          const userIndex = users.findIndex((u: User) => u.id === userId)
+          if (userIndex !== -1) {
+            users[userIndex] = user
+            localStorage.setItem('medcheck_users', JSON.stringify(users))
+          }
+        }
+
+        const teams = JSON.parse(localStorage.getItem('medcheck_teams') || '[]')
+        const userTeams = teams.filter((t: Team) => t.user_id === userId)
+        const currentTeams = userTeams.length
+        const maxTeams = SUBSCRIPTION_LIMITS[user.subscription_plan as keyof typeof SUBSCRIPTION_LIMITS].teams
+
+        if (maxTeams === -1) { // Custom plan
+          resolve({ canAdd: true, currentTeams, maxTeams: -1, error: null })
+          return
+        }
+
+        resolve({ canAdd: currentTeams < maxTeams, currentTeams, maxTeams, error: null })
+      } catch (error) {
+        resolve({ canAdd: false, currentTeams: 0, maxTeams: 0, error: 'Error checking team limits' })
+      }
+    }, 100)
+  })
+}
+
+// Check if user can add more players
+export function canAddPlayer(userId: string): Promise<{ canAdd: boolean; currentPlayers: number; maxPlayers: number; error: string | null }> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      try {
+        const users = JSON.parse(localStorage.getItem('medcheck_users') || '[]')
+        const user = users.find((u: User) => u.id === userId)
+        if (!user) {
+          resolve({ canAdd: false, currentPlayers: 0, maxPlayers: 0, error: 'User not found' })
+          return
+        }
+
+        // Ensure user has valid subscription plan
+        if (!user.subscription_plan || !SUBSCRIPTION_LIMITS[user.subscription_plan as keyof typeof SUBSCRIPTION_LIMITS]) {
+          // Default to base plan if invalid
+          user.subscription_plan = 'base'
+          user.subscription_price = 80
+          // Update user in storage
+          const userIndex = users.findIndex((u: User) => u.id === userId)
+          if (userIndex !== -1) {
+            users[userIndex] = user
+            localStorage.setItem('medcheck_users', JSON.stringify(users))
+          }
+        }
+
+        const teams = JSON.parse(localStorage.getItem('medcheck_teams') || '[]')
+        const userTeams = teams.filter((t: Team) => t.user_id === userId)
+        const players = JSON.parse(localStorage.getItem('medcheck_players') || '[]')
+        const userPlayers = players.filter((p: Player) => userTeams.some((t: Team) => t.id === p.team_id))
+        const currentPlayers = userPlayers.length
+        const maxPlayers = SUBSCRIPTION_LIMITS[user.subscription_plan as keyof typeof SUBSCRIPTION_LIMITS].players
+
+        if (maxPlayers === -1) { // Custom plan
+          resolve({ canAdd: true, currentPlayers, maxPlayers: -1, error: null })
+          return
+        }
+
+        resolve({ canAdd: currentPlayers < maxPlayers, currentPlayers, maxPlayers, error: null })
+      } catch (error) {
+        resolve({ canAdd: false, currentPlayers: 0, maxPlayers: 0, error: 'Error checking player limits' })
+      }
+    }, 100)
+  })
+}
+
+// Update user organization info
+export function updateUserOrganization(userId: string, updates: Partial<User>): Promise<{ error: string | null }> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      try {
+        const users = JSON.parse(localStorage.getItem('medcheck_users') || '[]')
+        const userIndex = users.findIndex((u: User) => u.id === userId)
+        if (userIndex !== -1) {
+          users[userIndex] = { ...users[userIndex], ...updates }
+          localStorage.setItem('medcheck_users', JSON.stringify(users))
+          
+          // Update current user if it's the same user
+          const currentUser = getCurrentUser()
+          if (currentUser && currentUser.id === userId) {
+            localStorage.setItem('medcheck_current_user', JSON.stringify(users[userIndex]))
+          }
+        }
+        resolve({ error: null })
+      } catch (error) {
+        resolve({ error: 'Error updating user organization' })
+      }
+    }, 100)
   })
 }

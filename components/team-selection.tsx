@@ -6,12 +6,19 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { getTeams, createTeam, updateTeam, deleteTeam, signOut } from "@/lib/local-storage"
-import { Plus, Users, LogOut, Edit, Trash2 } from 'lucide-react'
+import { getTeams, createTeam, updateTeam, deleteTeam, signOut, canAddTeam, SUBSCRIPTION_LIMITS } from "@/lib/local-storage"
+import { Plus, Users, LogOut, Edit, Trash2, Settings } from 'lucide-react'
+import { SettingsDialog } from "@/components/settings-dialog"
 
 interface User {
   id: string
   email: string
+  organization_name?: string
+  organization_logo?: string
+  subscription_plan: "base" | "plus" | "custom"
+  subscription_start_date: string
+  subscription_end_date: string
+  subscription_price: number
 }
 
 interface Team {
@@ -33,6 +40,7 @@ export function TeamSelection({ user, onTeamSelect, onLogout }: TeamSelectionPro
   const [teamName, setTeamName] = useState('')
   const [loading, setLoading] = useState(false)
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
+  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false)
 
   useEffect(() => {
     fetchTeams()
@@ -91,7 +99,13 @@ export function TeamSelection({ user, onTeamSelect, onLogout }: TeamSelectionPro
     setIsDialogOpen(true)
   }
 
-  const openCreateDialog = () => {
+  const openCreateDialog = async () => {
+    // Check team limits before opening dialog
+    const limits = await canAddTeam(user.id)
+    if (!limits.canAdd) {
+      alert(`Hai raggiunto il limite massimo di squadre per il tuo piano (${limits.maxTeams}). Aggiorna il piano per aggiungere più squadre.`)
+      return
+    }
     setEditingTeam(null)
     setTeamName('')
     setIsDialogOpen(true)
@@ -103,7 +117,7 @@ export function TeamSelection({ user, onTeamSelect, onLogout }: TeamSelectionPro
       <div className="bg-white border-b border-gray-200 p-3 sm:p-4 shadow-sm">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="w-8 w-8 sm:w-10 sm:h-10 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-white font-bold text-sm sm:text-base">MC</span>
             </div>
             <div className="min-w-0 flex-1">
@@ -111,14 +125,24 @@ export function TeamSelection({ user, onTeamSelect, onLogout }: TeamSelectionPro
               <p className="text-xs sm:text-sm text-gray-600 truncate">{user.email}</p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleLogout}
-            className="border-gray-300 text-gray-700 hover:bg-gray-50 h-8 w-8 sm:h-10 sm:w-10 p-0 flex-shrink-0"
-          >
-            <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
-          </Button>
+          <div className="flex space-x-1 sm:space-x-2 flex-shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsSettingsDialogOpen(true)}
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 h-8 w-8 sm:h-10 sm:w-10 p-0"
+            >
+              <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 h-8 w-8 sm:h-10 sm:w-10 p-0"
+            >
+              <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -228,6 +252,27 @@ export function TeamSelection({ user, onTeamSelect, onLogout }: TeamSelectionPro
                   required
                 />
               </div>
+              
+              {/* Subscription Info */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800">Limiti del piano</span>
+                </div>
+                <div className="text-sm text-blue-700">
+                  <div className="flex justify-between">
+                    <span>Squadre attuali:</span>
+                    <span className="font-medium">{teams.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Limite massimo:</span>
+                    <span className="font-medium">
+                      {user.subscription_plan === "custom" ? "Illimitato" : 
+                       (SUBSCRIPTION_LIMITS[user.subscription_plan as keyof typeof SUBSCRIPTION_LIMITS]?.teams || SUBSCRIPTION_LIMITS.base.teams)}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
             <DialogFooter className="space-y-3 sm:space-y-0">
               <Button
@@ -249,6 +294,16 @@ export function TeamSelection({ user, onTeamSelect, onLogout }: TeamSelectionPro
           </form>
         </DialogContent>
       </Dialog>
+
+      <SettingsDialog
+        user={user}
+        isOpen={isSettingsDialogOpen}
+        onClose={() => setIsSettingsDialogOpen(false)}
+        onUpdate={() => {
+          // Refresh user data if needed
+          window.location.reload()
+        }}
+      />
     </div>
   )
 }

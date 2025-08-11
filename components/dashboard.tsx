@@ -5,16 +5,23 @@ import * as React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Users, AlertTriangle, CheckCircle, List, Home, ArrowLeft, LogOut, CheckCircle2, Clock } from "lucide-react"
+import { Users, AlertTriangle, CheckCircle, List, Home, ArrowLeft, LogOut, CheckCircle2, Clock, Settings } from "lucide-react"
 import { PlayerDialog } from "@/components/player-dialog"
 import { CalendarView } from "@/components/calendar-view"
 import { ListView } from "@/components/list-view"
 import { VisitStatusDialog } from "@/components/visit-status-dialog"
-import { getPlayers, signOut, markVisitCompleted, markVisitIncomplete, updatePlayer } from "@/lib/local-storage"
+import { getPlayers, signOut, markVisitCompleted, markVisitIncomplete, updatePlayer, canAddTeam, canAddPlayer } from "@/lib/local-storage"
+import { SettingsDialog } from "@/components/settings-dialog"
 
 interface User {
   id: string
   email: string
+  organization_name?: string
+  organization_logo?: string
+  subscription_plan: "base" | "plus" | "custom"
+  subscription_start_date: string
+  subscription_end_date: string
+  subscription_price: number
 }
 
 interface Team {
@@ -55,7 +62,18 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
   const [isVisitStatusDialogOpen, setIsVisitStatusDialogOpen] = useState(false)
   const [visitStatusPlayer, setVisitStatusPlayer] = useState<Player | null>(null)
+  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  // Ensure user has required subscription fields
+  const safeUser = {
+    ...user,
+    subscription_plan: user.subscription_plan || 'base',
+    subscription_start_date: user.subscription_start_date || new Date().toISOString(),
+    subscription_end_date: user.subscription_end_date || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+    subscription_price: user.subscription_price || 80,
+    organization_name: user.organization_name || 'Nuovo Club'
+  }
 
   useEffect(() => {
     fetchPlayers()
@@ -108,7 +126,7 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
       case "valid":
         return <CheckCircle className="h-5 w-5" />
       default:
-        return null
+        return <CheckCircle className="h-5 w-5" />
     }
   }
 
@@ -179,6 +197,27 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
     }
   }
 
+  const handleAddPlayer = async () => {
+    // Check player limits before opening dialog
+    const limits = await canAddPlayer(safeUser.id)
+    if (!limits.canAdd) {
+      alert(`Hai raggiunto il limite massimo di giocatori per il tuo piano (${limits.maxPlayers}). Aggiorna il piano per aggiungere più giocatori.`)
+      return
+    }
+    setIsPlayerDialogOpen(true)
+  }
+
+  const handleAddTeam = async () => {
+    // Check team limits before opening dialog
+    const limits = await canAddTeam(safeUser.id)
+    if (!limits.canAdd) {
+      alert(`Hai raggiunto il limite massimo di squadre per il tuo piano (${limits.maxTeams}). Aggradna il piano per aggiungere più squadre.`)
+      return
+    }
+    // This would open team creation dialog - for now just show message
+    alert("Funzionalità creazione squadra in sviluppo. Usa la selezione squadra esistente.")
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-3 sm:p-4">
@@ -209,6 +248,14 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
             </div>
           </div>
           <div className="flex space-x-1 sm:space-x-2 flex-shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsSettingsDialogOpen(true)}
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 h-8 w-8 sm:h-10 sm:w-10 p-0 bg-transparent"
+            >
+              <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -412,7 +459,7 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
               }}
               onVisitStatusChange={openVisitStatusDialog}
               onRefresh={fetchPlayers}
-              onAddPlayer={() => setIsPlayerDialogOpen(true)}
+              onAddPlayer={handleAddPlayer}
             />
           </div>
         )}
@@ -460,6 +507,16 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
         }}
         player={visitStatusPlayer}
         onUpdatePlayer={handleUpdatePlayer}
+      />
+
+      <SettingsDialog
+        user={safeUser}
+        isOpen={isSettingsDialogOpen}
+        onClose={() => setIsSettingsDialogOpen(false)}
+        onUpdate={() => {
+          // Refresh user data if needed
+          window.location.reload()
+        }}
       />
     </div>
   )

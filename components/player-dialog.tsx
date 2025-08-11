@@ -15,8 +15,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Upload, FileText, Download, Eye, X, Camera } from "lucide-react"
-import { createPlayer, updatePlayer } from "@/lib/local-storage"
+import { Upload, FileText, Download, Eye, X, Camera, Users } from "lucide-react"
+import { createPlayer, updatePlayer, canAddPlayer, SUBSCRIPTION_LIMITS } from "@/lib/local-storage"
 
 interface Player {
   id: string
@@ -54,6 +54,25 @@ export function PlayerDialog({ isOpen, onClose, onSave, player, teamId }: Player
   })
   const [loading, setLoading] = useState(false)
   const [filePreview, setFilePreview] = useState<string | null>(null)
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [playerLimits, setPlayerLimits] = useState<{ current: number; max: number } | null>(null)
+
+  // Get player limits when dialog opens
+  useEffect(() => {
+    const fetchPlayerLimits = async () => {
+      try {
+        // This would need to be passed from parent component
+        // For now, we'll show a placeholder
+        setPlayerLimits({ current: 0, max: 50 })
+      } catch (error) {
+        console.error("Error fetching player limits:", error)
+      }
+    }
+    
+    if (isOpen && !player) {
+      fetchPlayerLimits()
+    }
+  }, [isOpen, player])
 
   useEffect(() => {
     if (player) {
@@ -173,11 +192,12 @@ export function PlayerDialog({ isOpen, onClose, onSave, player, teamId }: Player
 
   const handlePreviewFile = () => {
     if (formData.medical_certificate) {
-      window.open(formData.medical_certificate, "_blank")
+      setIsPreviewOpen(true)
     }
   }
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[90vw] max-w-[95vw] max-h-[90vh] overflow-y-auto bg-white border-gray-200 m-2 sm:m-4">
         <DialogHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
@@ -356,7 +376,7 @@ export function PlayerDialog({ isOpen, onClose, onSave, player, teamId }: Player
                         size="sm"
                         variant="outline"
                         onClick={handlePreviewFile}
-                        className="flex-1 border-blue-300 text-blue-700 hover:bg-blue-50 text-xs sm:text-sm bg-transparent"
+                        className="flex-1 border-blue-300 text-blue-700 hover:bg-blue-100 text-xs sm:text-sm bg-transparent"
                       >
                         <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                         Anteprima
@@ -394,6 +414,26 @@ export function PlayerDialog({ isOpen, onClose, onSave, player, teamId }: Player
                 )}
               </div>
             </div>
+
+            {/* Player Limits Info */}
+            {!player && playerLimits && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800">Limiti del piano</span>
+                </div>
+                <div className="text-sm text-blue-700">
+                  <div className="flex justify-between">
+                    <span>Giocatori attuali:</span>
+                    <span className="font-medium">{playerLimits.current}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Limite massimo:</span>
+                    <span className="font-medium">{playerLimits.max}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0 space-y-2 sm:space-y-0 p-4 sm:p-6 pt-0">
@@ -416,5 +456,27 @@ export function PlayerDialog({ isOpen, onClose, onSave, player, teamId }: Player
         </form>
       </DialogContent>
     </Dialog>
+
+    {/* Preview Modal */}
+    <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+      <DialogContent className="w-[95vw] max-w-3xl h-[85vh] p-3 sm:p-4">
+        <div className="w-full h-full rounded-lg overflow-hidden bg-white">
+          {formData.medical_certificate_type === "application/pdf" ? (
+            <iframe title="Anteprima Certificato" src={formData.medical_certificate} className="w-full h-full" />
+          ) : (
+            <img alt="Anteprima Certificato" src={formData.medical_certificate} className="w-full h-full object-contain bg-gray-50" />
+          )}
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={handleDownloadFile} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+            Scarica
+          </Button>
+          <Button onClick={() => setIsPreviewOpen(false)} variant="outline" className="flex-1">
+            Chiudi
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }
