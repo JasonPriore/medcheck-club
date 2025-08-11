@@ -1,11 +1,21 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Upload, FileText, Download, Eye, X, Camera } from "lucide-react"
 import { createPlayer, updatePlayer } from "@/lib/local-storage"
 
 interface Player {
@@ -17,6 +27,9 @@ interface Player {
   medical_exam_date: string
   medical_expiry_date: string
   team_id: string
+  medical_certificate?: string
+  medical_certificate_name?: string
+  medical_certificate_type?: string
 }
 
 interface PlayerDialogProps {
@@ -29,14 +42,18 @@ interface PlayerDialogProps {
 
 export function PlayerDialog({ isOpen, onClose, onSave, player, teamId }: PlayerDialogProps) {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    position: '',
-    medical_exam_date: '',
-    medical_expiry_date: ''
+    name: "",
+    email: "",
+    phone: "",
+    position: "",
+    medical_exam_date: "",
+    medical_expiry_date: "",
+    medical_certificate: "",
+    medical_certificate_name: "",
+    medical_certificate_type: "",
   })
   const [loading, setLoading] = useState(false)
+  const [filePreview, setFilePreview] = useState<string | null>(null)
 
   useEffect(() => {
     if (player) {
@@ -46,17 +63,27 @@ export function PlayerDialog({ isOpen, onClose, onSave, player, teamId }: Player
         phone: player.phone,
         position: player.position,
         medical_exam_date: player.medical_exam_date,
-        medical_expiry_date: player.medical_expiry_date
+        medical_expiry_date: player.medical_expiry_date,
+        medical_certificate: player.medical_certificate || "",
+        medical_certificate_name: player.medical_certificate_name || "",
+        medical_certificate_type: player.medical_certificate_type || "",
       })
+      if (player.medical_certificate) {
+        setFilePreview(player.medical_certificate)
+      }
     } else {
       setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        position: '',
-        medical_exam_date: '',
-        medical_expiry_date: ''
+        name: "",
+        email: "",
+        phone: "",
+        position: "",
+        medical_exam_date: "",
+        medical_expiry_date: "",
+        medical_certificate: "",
+        medical_certificate_name: "",
+        medical_certificate_type: "",
       })
+      setFilePreview(null)
     }
   }, [player, isOpen])
 
@@ -73,25 +100,81 @@ export function PlayerDialog({ isOpen, onClose, onSave, player, teamId }: Player
 
       onSave()
     } catch (error) {
-      console.error('Error saving player:', error)
+      console.error("Error saving player:", error)
     } finally {
       setLoading(false)
     }
   }
 
   const handleExamDateChange = (examDate: string) => {
-    setFormData(prev => {
+    setFormData((prev) => {
       const newFormData = { ...prev, medical_exam_date: examDate }
-      
+
       if (examDate) {
         const examDateObj = new Date(examDate)
         const expiryDate = new Date(examDateObj)
         expiryDate.setFullYear(expiryDate.getFullYear() + 1)
-        newFormData.medical_expiry_date = expiryDate.toISOString().split('T')[0]
+        newFormData.medical_expiry_date = expiryDate.toISOString().split("T")[0]
       }
-      
+
       return newFormData
     })
+  }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Il file è troppo grande. Dimensione massima: 5MB")
+        return
+      }
+
+      const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "application/pdf"]
+      if (!allowedTypes.includes(file.type)) {
+        alert("Tipo di file non supportato. Usa JPG, PNG o PDF")
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const result = event.target?.result as string
+        setFormData((prev) => ({
+          ...prev,
+          medical_certificate: result,
+          medical_certificate_name: file.name,
+          medical_certificate_type: file.type,
+        }))
+        setFilePreview(result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleRemoveFile = () => {
+    setFormData((prev) => ({
+      ...prev,
+      medical_certificate: "",
+      medical_certificate_name: "",
+      medical_certificate_type: "",
+    }))
+    setFilePreview(null)
+  }
+
+  const handleDownloadFile = () => {
+    if (formData.medical_certificate && formData.medical_certificate_name) {
+      const link = document.createElement("a")
+      link.href = formData.medical_certificate
+      link.download = formData.medical_certificate_name
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
+  }
+
+  const handlePreviewFile = () => {
+    if (formData.medical_certificate) {
+      window.open(formData.medical_certificate, "_blank")
+    }
   }
 
   return (
@@ -99,10 +182,12 @@ export function PlayerDialog({ isOpen, onClose, onSave, player, teamId }: Player
       <DialogContent className="sm:max-w-[90vw] max-w-[95vw] max-h-[90vh] overflow-y-auto bg-white border-gray-200 m-2 sm:m-4">
         <DialogHeader className="p-4 sm:p-6 pb-2 sm:pb-4">
           <DialogTitle className="text-xl sm:text-2xl text-gray-800">
-            {player ? 'Modifica Giocatore' : 'Aggiungi Giocatore'}
+            {player ? "Modifica Giocatore" : "Aggiungi Giocatore"}
           </DialogTitle>
           <DialogDescription className="text-gray-600 text-base sm:text-lg">
-            {player ? 'Aggiorna le informazioni del giocatore e i dettagli della visita medica.' : 'Aggiungi un nuovo giocatore alla squadra.'}
+            {player
+              ? "Aggiorna le informazioni del giocatore e i dettagli della visita medica."
+              : "Aggiungi un nuovo giocatore alla squadra."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -114,13 +199,13 @@ export function PlayerDialog({ isOpen, onClose, onSave, player, teamId }: Player
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                 className="h-10 sm:h-12 text-base sm:text-lg bg-gray-50 border-gray-300 text-gray-800 placeholder-gray-500"
                 placeholder="Inserisci il nome completo"
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="email" className="text-base sm:text-lg text-gray-700">
                 Indirizzo Email
@@ -129,13 +214,13 @@ export function PlayerDialog({ isOpen, onClose, onSave, player, teamId }: Player
                 id="email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
                 className="h-10 sm:h-12 text-base sm:text-lg bg-gray-50 border-gray-300 text-gray-800 placeholder-gray-500"
                 placeholder="giocatore@email.com"
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="phone" className="text-base sm:text-lg text-gray-700">
                 Numero di Telefono
@@ -143,35 +228,47 @@ export function PlayerDialog({ isOpen, onClose, onSave, player, teamId }: Player
               <Input
                 id="phone"
                 value={formData.phone}
-                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
                 className="h-10 sm:h-12 text-base sm:text-lg bg-gray-50 border-gray-300 text-gray-800 placeholder-gray-500"
                 placeholder="+39 123 456 7890"
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="position" className="text-base sm:text-lg text-gray-700">
                 Ruolo
               </Label>
               <Select
                 value={formData.position}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, position: value }))}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, position: value }))}
               >
                 <SelectTrigger className="h-10 sm:h-12 text-base sm:text-lg bg-gray-50 border-gray-300 text-gray-800">
                   <SelectValue placeholder="Seleziona ruolo" />
                 </SelectTrigger>
                 <SelectContent className="bg-white border-gray-300">
-                  <SelectItem value="Portiere" className="text-base sm:text-lg text-gray-800 hover:bg-gray-100">Portiere</SelectItem>
-                  <SelectItem value="Difensore" className="text-base sm:text-lg text-gray-800 hover:bg-gray-100">Difensore</SelectItem>
-                  <SelectItem value="Centrocampista" className="text-base sm:text-lg text-gray-800 hover:bg-gray-100">Centrocampista</SelectItem>
-                  <SelectItem value="Attaccante" className="text-base sm:text-lg text-gray-800 hover:bg-gray-100">Attaccante</SelectItem>
-                  <SelectItem value="Allenatore" className="text-base sm:text-lg text-gray-800 hover:bg-gray-100">Allenatore</SelectItem>
-                  <SelectItem value="Staff" className="text-base sm:text-lg text-gray-800 hover:bg-gray-100">Staff</SelectItem>
+                  <SelectItem value="Portiere" className="text-base sm:text-lg text-gray-800 hover:bg-gray-100">
+                    Portiere
+                  </SelectItem>
+                  <SelectItem value="Difensore" className="text-base sm:text-lg text-gray-800 hover:bg-gray-100">
+                    Difensore
+                  </SelectItem>
+                  <SelectItem value="Centrocampista" className="text-base sm:text-lg text-gray-800 hover:bg-gray-100">
+                    Centrocampista
+                  </SelectItem>
+                  <SelectItem value="Attaccante" className="text-base sm:text-lg text-gray-800 hover:bg-gray-100">
+                    Attaccante
+                  </SelectItem>
+                  <SelectItem value="Allenatore" className="text-base sm:text-lg text-gray-800 hover:bg-gray-100">
+                    Allenatore
+                  </SelectItem>
+                  <SelectItem value="Staff" className="text-base sm:text-lg text-gray-800 hover:bg-gray-100">
+                    Staff
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="exam-date" className="text-base sm:text-lg text-gray-700">
                 Data Visita Medica
@@ -185,7 +282,7 @@ export function PlayerDialog({ isOpen, onClose, onSave, player, teamId }: Player
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="expiry-date" className="text-base sm:text-lg text-gray-700">
                 Data di Scadenza
@@ -194,28 +291,126 @@ export function PlayerDialog({ isOpen, onClose, onSave, player, teamId }: Player
                 id="expiry-date"
                 type="date"
                 value={formData.medical_expiry_date}
-                onChange={(e) => setFormData(prev => ({ ...prev, medical_expiry_date: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, medical_expiry_date: e.target.value }))}
                 className="h-10 sm:h-12 text-base sm:text-lg bg-gray-50 border-gray-300 text-gray-800"
                 required
               />
             </div>
+
+            <div className="space-y-2">
+              <Label className="text-base sm:text-lg text-gray-700">Certificato Medico</Label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6">
+                {!filePreview ? (
+                  <div className="text-center">
+                    <div className="flex flex-col items-center gap-2 sm:gap-4">
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Upload className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-gray-700 font-medium text-sm sm:text-base mb-1">Carica certificato medico</p>
+                        <p className="text-gray-500 text-xs sm:text-sm">JPG, PNG o PDF (max 5MB)</p>
+                      </div>
+                      <label htmlFor="file-upload" className="cursor-pointer">
+                        <Button type="button" className="bg-blue-600 hover:bg-blue-700 text-white text-sm sm:text-base">
+                          <Camera className="h-4 w-4 mr-2" />
+                          Seleziona File
+                        </Button>
+                        <input
+                          id="file-upload"
+                          type="file"
+                          accept="image/*,.pdf"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-green-800 font-medium text-sm sm:text-base truncate">
+                          {formData.medical_certificate_name}
+                        </p>
+                        <p className="text-green-600 text-xs sm:text-sm">
+                          {formData.medical_certificate_type === "application/pdf" ? "Documento PDF" : "Immagine"}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleRemoveFile}
+                        className="border-red-300 text-red-700 hover:bg-red-50 h-8 w-8 p-0 bg-transparent"
+                      >
+                        <X className="h-3 w-3 sm:h-4 sm:w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handlePreviewFile}
+                        className="flex-1 border-blue-300 text-blue-700 hover:bg-blue-50 text-xs sm:text-sm bg-transparent"
+                      >
+                        <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                        Anteprima
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleDownloadFile}
+                        className="flex-1 border-green-300 text-green-700 hover:bg-green-50 text-xs sm:text-sm bg-transparent"
+                      >
+                        <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                        Scarica
+                      </Button>
+                      <label htmlFor="file-replace" className="flex-1 cursor-pointer">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="w-full border-orange-300 text-orange-700 hover:bg-orange-50 text-xs sm:text-sm bg-transparent"
+                        >
+                          <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                          Sostituisci
+                        </Button>
+                        <input
+                          id="file-replace"
+                          type="file"
+                          accept="image/*,.pdf"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-          
+
           <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0 space-y-2 sm:space-y-0 p-4 sm:p-6 pt-0">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={onClose}
-              className="w-full sm:w-auto h-10 sm:h-12 text-base sm:text-lg border-gray-300 text-gray-700 hover:bg-gray-50"
+              className="w-full sm:w-auto h-10 sm:h-12 text-base sm:text-lg border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent"
             >
               Annulla
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={loading}
               className="w-full sm:w-auto h-10 sm:h-12 text-base sm:text-lg bg-blue-600 hover:bg-blue-700 text-white"
             >
-              {loading ? 'Salvataggio...' : (player ? 'Aggiorna Giocatore' : 'Aggiungi Giocatore')}
+              {loading ? "Salvataggio..." : player ? "Aggiorna Giocatore" : "Aggiungi Giocatore"}
             </Button>
           </DialogFooter>
         </form>

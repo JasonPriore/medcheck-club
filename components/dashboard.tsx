@@ -5,7 +5,7 @@ import * as React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, Users, AlertTriangle, CheckCircle, Plus, CalendarDays, List, Home, ArrowLeft, LogOut, CheckCircle2, Clock } from 'lucide-react'
+import { Users, AlertTriangle, CheckCircle, List, Home, ArrowLeft, LogOut, CheckCircle2, Clock } from "lucide-react"
 import { PlayerDialog } from "@/components/player-dialog"
 import { CalendarView } from "@/components/calendar-view"
 import { ListView } from "@/components/list-view"
@@ -35,7 +35,7 @@ interface Player {
   team_id: string
   visit_completed?: boolean
   visit_completed_date?: string
-  status: 'valid' | 'expiring_soon' | 'expired'
+  status: "valid" | "expiring_soon" | "expired"
 }
 
 interface DashboardProps {
@@ -47,7 +47,7 @@ interface DashboardProps {
 
 export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps) {
   const [players, setPlayers] = useState<Player[]>([])
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'calendar' | 'list'>('dashboard')
+  const [activeTab, setActiveTab] = useState<"home" | "list">("home")
   const [isPlayerDialogOpen, setIsPlayerDialogOpen] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
   const [isVisitStatusDialogOpen, setIsVisitStatusDialogOpen] = useState(false)
@@ -61,59 +61,71 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
   const fetchPlayers = async () => {
     try {
       const teamPlayers = await getPlayers(team.id)
-      const playersWithStatus = teamPlayers.map(player => ({
+      const playersWithStatus = teamPlayers.map((player) => ({
         ...player,
-        status: getPlayerStatus(player.medical_expiry_date)
+        status: getPlayerStatus(player.medical_expiry_date),
       }))
       setPlayers(playersWithStatus)
     } catch (error) {
-      console.error('Error fetching players:', error)
+      console.error("Error fetching players:", error)
     } finally {
       setLoading(false)
     }
   }
 
-  const getPlayerStatus = (expiryDate: string): 'valid' | 'expiring_soon' | 'expired' => {
+  const getPlayerStatus = (expiryDate: string): "valid" | "expiring_soon" | "expired" => {
     const today = new Date()
     const expiry = new Date(expiryDate)
     const daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 
-    if (daysUntilExpiry < 0) return 'expired'
-    if (daysUntilExpiry <= 30) return 'expiring_soon'
-    return 'valid'
+    if (daysUntilExpiry < 0) return "expired"
+    if (daysUntilExpiry <= 30) return "expiring_soon"
+    return "valid"
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'expired': return 'destructive'
-      case 'expiring_soon': return 'secondary'
-      case 'valid': return 'default'
-      default: return 'default'
+      case "expired":
+        return "destructive"
+      case "expiring_soon":
+        return "secondary"
+      case "valid":
+        return "default"
+      default:
+        return "default"
     }
   }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'expired': return <AlertTriangle className="h-5 w-5" />
-      case 'expiring_soon': return <AlertTriangle className="h-5 w-5" />
-      case 'valid': return <CheckCircle className="h-5 w-5" />
-      default: return null
+      case "expired":
+        return <AlertTriangle className="h-5 w-5" />
+      case "expiring_soon":
+        return <AlertTriangle className="h-5 w-5" />
+      case "valid":
+        return <CheckCircle className="h-5 w-5" />
+      default:
+        return null
     }
   }
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'expired': return 'Scaduta'
-      case 'expiring_soon': return 'In Scadenza'
-      case 'valid': return 'Valida'
-      default: return 'Sconosciuto'
+      case "expired":
+        return "Scaduta"
+      case "expiring_soon":
+        return "In Scadenza"
+      case "valid":
+        return "Valida"
+      default:
+        return "Sconosciuto"
     }
   }
 
-  const validPlayers = players.filter(p => p.status === 'valid').length
-  const expiringSoonPlayers = players.filter(p => p.status === 'expiring_soon').length
-  const expiredPlayers = players.filter(p => p.status === 'expired').length
-  const completedVisits = players.filter(p => p.visit_completed).length
+  const validPlayers = players.filter((p) => p.status === "valid").length
+  const expiringSoonPlayers = players.filter((p) => p.status === "expiring_soon").length
+  const expiredPlayers = players.filter((p) => p.status === "expired").length
+  const completedVisits = players.filter((p) => p.visit_completed).length
 
   const handlePlayerSaved = () => {
     fetchPlayers()
@@ -131,7 +143,7 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
       await markVisitCompleted(playerId)
       fetchPlayers()
     } catch (error) {
-      console.error('Error marking visit as completed:', error)
+      console.error("Error marking visit as completed:", error)
     }
   }
 
@@ -140,7 +152,7 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
       await markVisitIncomplete(playerId)
       fetchPlayers()
     } catch (error) {
-      console.error('Error marking visit as incomplete:', error)
+      console.error("Error marking visit as incomplete:", error)
     }
   }
 
@@ -183,7 +195,7 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
               variant="outline"
               size="sm"
               onClick={onTeamChange}
-              className="border-gray-300 text-gray-700 hover:bg-gray-50 h-8 w-8 sm:h-10 sm:w-10 p-0"
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 h-8 w-8 sm:h-10 sm:w-10 p-0 bg-transparent"
             >
               <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
@@ -191,7 +203,7 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
               variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="border-gray-300 text-gray-700 hover:bg-gray-50 h-8 w-8 sm:h-10 sm:w-10 p-0"
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 h-8 w-8 sm:h-10 sm:w-10 p-0 bg-transparent"
             >
               <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
@@ -201,17 +213,8 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
 
       {/* Content */}
       <div className="pb-20">
-        {activeTab === 'dashboard' && (
+        {activeTab === "home" && (
           <div className="p-4 space-y-6">
-            {/* Add Player Button */}
-            <Button 
-              onClick={() => setIsPlayerDialogOpen(true)}
-              className="w-full h-14 text-lg bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Plus className="h-6 w-6 mr-3" />
-              Aggiungi Giocatore
-            </Button>
-
             {/* Stats Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <Card className="bg-white border-gray-200 shadow-lg">
@@ -263,6 +266,8 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
               </Card>
             </div>
 
+            <CalendarView players={players} onVisitStatusChange={openVisitStatusDialog} />
+
             {/* Recent Players */}
             <Card className="bg-white border-gray-200 shadow-lg">
               <CardHeader>
@@ -276,31 +281,42 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
                   <div className="text-center py-12">
                     <Users className="h-16 w-16 text-gray-400 mx-auto mb-6" />
                     <h3 className="text-xl font-medium text-gray-800 mb-3">Nessun giocatore</h3>
-                    <p className="text-gray-600 text-lg mb-6">Inizia aggiungendo il primo giocatore</p>
-                    <Button 
-                      onClick={() => setIsPlayerDialogOpen(true)}
+                    <p className="text-gray-600 text-lg mb-6">
+                      Inizia aggiungendo il primo giocatore nella sezione Lista Giocatori
+                    </p>
+                    <Button
+                      onClick={() => setActiveTab("list")}
                       className="h-12 px-8 text-lg bg-blue-600 hover:bg-blue-700 text-white"
                     >
-                      <Plus className="h-5 w-5 mr-2" />
-                      Aggiungi Giocatore
+                      <List className="h-5 w-5 mr-2" />
+                      Vai alla Lista Giocatori
                     </Button>
                   </div>
                 ) : (
                   <div className="space-y-3 sm:space-y-4">
                     {players.slice(0, 5).map((player) => (
-                      <div key={player.id} className={`rounded-lg p-3 sm:p-4 border-2 transition-all duration-200 ${
-                        player.visit_completed 
-                          ? 'bg-green-50 border-green-200 hover:border-green-300' 
-                          : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                      }`}>
+                      <div
+                        key={player.id}
+                        className={`rounded-lg p-3 sm:p-4 border-2 transition-all duration-200 ${
+                          player.visit_completed
+                            ? "bg-green-50 border-green-200 hover:border-green-300"
+                            : "bg-gray-50 border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
                         <div className="flex items-start justify-between gap-2 sm:gap-4">
                           <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
                             <div className="relative flex-shrink-0">
-                              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center ${
-                                player.visit_completed ? 'bg-green-600' : 'bg-blue-600'
-                              }`}>
+                              <div
+                                className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center ${
+                                  player.visit_completed ? "bg-green-600" : "bg-blue-600"
+                                }`}
+                              >
                                 <span className="text-white font-bold text-sm sm:text-lg">
-                                  {player.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                  {player.name
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .join("")
+                                    .toUpperCase()}
                                 </span>
                               </div>
                               {player.visit_completed && (
@@ -322,37 +338,39 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
                             </div>
                           </div>
                           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                            <Badge variant={getStatusColor(player.status)} className="flex items-center gap-1 px-2 py-1 text-xs sm:text-sm">
+                            <Badge
+                              variant={getStatusColor(player.status)}
+                              className="flex items-center gap-1 px-2 py-1 text-xs sm:text-sm"
+                            >
                               {React.cloneElement(getStatusIcon(player.status), { className: "h-3 w-3 sm:h-4 sm:w-4" })}
-                              <span className="font-medium hidden sm:inline">
-                                {getStatusText(player.status)}
-                              </span>
+                              <span className="font-medium hidden sm:inline">{getStatusText(player.status)}</span>
                             </Badge>
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => openVisitStatusDialog(player)}
                               className={`border-2 h-8 w-8 p-0 ${
-                                player.visit_completed 
-                                  ? 'border-green-300 text-green-700 hover:bg-green-50' 
-                                  : 'border-orange-300 text-orange-700 hover:bg-orange-50'
+                                player.visit_completed
+                                  ? "border-green-300 text-green-700 hover:bg-green-50"
+                                  : "border-orange-300 text-orange-700 hover:bg-orange-50"
                               }`}
                             >
-                              {player.visit_completed ? 
-                                <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4" /> : 
+                              {player.visit_completed ? (
+                                <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                              ) : (
                                 <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-                              }
+                              )}
                             </Button>
                           </div>
                         </div>
                         <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-200">
                           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-2">
                             <p className="text-gray-700 text-sm sm:text-base">
-                              Scade: {new Date(player.medical_expiry_date).toLocaleDateString('it-IT')}
+                              Scade: {new Date(player.medical_expiry_date).toLocaleDateString("it-IT")}
                             </p>
                             {player.visit_completed && player.visit_completed_date && (
                               <p className="text-green-700 text-xs sm:text-sm font-medium">
-                                Completata: {new Date(player.visit_completed_date).toLocaleDateString('it-IT')}
+                                Completata: {new Date(player.visit_completed_date).toLocaleDateString("it-IT")}
                               </p>
                             )}
                           </div>
@@ -366,56 +384,41 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
           </div>
         )}
 
-        {activeTab === 'calendar' && (
+        {activeTab === "list" && (
           <div className="p-4">
-            <CalendarView players={players} onVisitStatusChange={openVisitStatusDialog} />
-          </div>
-        )}
-
-        {activeTab === 'list' && (
-          <div className="p-4">
-            <ListView 
-              players={players} 
+            <ListView
+              players={players}
               onEditPlayer={(player) => {
                 setSelectedPlayer(player)
                 setIsPlayerDialogOpen(true)
               }}
               onVisitStatusChange={openVisitStatusDialog}
               onRefresh={fetchPlayers}
+              onAddPlayer={() => setIsPlayerDialogOpen(true)}
             />
           </div>
         )}
       </div>
 
-      {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg safe-area-pb">
-        <div className="grid grid-cols-3 h-16 sm:h-20 max-w-md mx-auto">
+        <div className="grid grid-cols-2 h-16 sm:h-20 max-w-md mx-auto">
           <button
-            onClick={() => setActiveTab('dashboard')}
+            onClick={() => setActiveTab("home")}
             className={`flex flex-col items-center justify-center space-y-0.5 sm:space-y-1 px-2 ${
-              activeTab === 'dashboard' ? 'text-blue-600' : 'text-gray-500'
+              activeTab === "home" ? "text-blue-600" : "text-gray-500"
             }`}
           >
             <Home className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
-            <span className="text-xs sm:text-sm font-medium truncate">Dashboard</span>
+            <span className="text-xs sm:text-sm font-medium truncate">Home</span>
           </button>
           <button
-            onClick={() => setActiveTab('calendar')}
+            onClick={() => setActiveTab("list")}
             className={`flex flex-col items-center justify-center space-y-0.5 sm:space-y-1 px-2 ${
-              activeTab === 'calendar' ? 'text-blue-600' : 'text-gray-500'
-            }`}
-          >
-            <CalendarDays className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
-            <span className="text-xs sm:text-sm font-medium truncate">Calendario</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('list')}
-            className={`flex flex-col items-center justify-center space-y-0.5 sm:space-y-1 px-2 ${
-              activeTab === 'list' ? 'text-blue-600' : 'text-gray-500'
+              activeTab === "list" ? "text-blue-600" : "text-gray-500"
             }`}
           >
             <List className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
-            <span className="text-xs sm:text-sm font-medium truncate">Lista</span>
+            <span className="text-xs sm:text-sm font-medium truncate">Lista Giocatori</span>
           </button>
         </div>
       </div>

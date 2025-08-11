@@ -1,19 +1,27 @@
-cat > .gitignore << 'EOF'
-# Node
-node_modules/
-npm-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-# Build/Output
-.next/
-dist/
-build/
-.out/
-.vercel/
-.vite/
-coverage/
-# Env
-.env
-.env.*
-EOF
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

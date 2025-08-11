@@ -1,350 +1,442 @@
 "use client"
 
-import { useState } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import type React from "react"
+import { useState, useRef } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle2, Clock, AlertTriangle, Calendar, User, Mail, Phone, MapPin, X } from 'lucide-react'
-import * as React from 'react'
+import { Calendar, Phone, Mail, Clock, User, X, FileText, Download, Upload, Eye, Plus, CheckCircle } from "lucide-react"
 
 interface Player {
   id: string
   name: string
-  email: string
-  phone: string
-  position: string
-  medical_exam_date: string
+  birth_date: string
+  phone?: string
+  email?: string
   medical_expiry_date: string
-  team_id: string
-  visit_completed?: boolean
-  visit_completed_date?: string
-  status: 'valid' | 'expiring_soon' | 'expired'
+  visit_completed: boolean
+  medical_certificate?: string
+  medical_certificate_name?: string
+  medical_certificate_type?: string
 }
 
 interface VisitStatusDialogProps {
+  player: Player | null
   isOpen: boolean
   onClose: () => void
-  player: Player | null
-  onMarkCompleted: (playerId: string) => void
-  onMarkIncomplete: (playerId: string) => void
+  onUpdatePlayer?: (playerId: string, updates: Partial<Player>) => void
 }
 
-export function VisitStatusDialog({ 
-  isOpen, 
-  onClose, 
-  player, 
-  onMarkCompleted, 
-  onMarkIncomplete 
-}: VisitStatusDialogProps) {
-  const [loading, setLoading] = useState(false)
+export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: VisitStatusDialogProps) {
+  const [uploadLoading, setUploadLoading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [uploadedFile, setUploadedFile] = useState<{ name: string; type: string } | null>(null)
+  const [isUploadComplete, setIsUploadComplete] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   if (!player) return null
 
-  const handleMarkCompleted = async () => {
-    setLoading(true)
-    try {
-      await onMarkCompleted(player.id)
-      onClose()
-    } catch (error) {
-      console.error('Error marking visit as completed:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleMarkIncomplete = async () => {
-    setLoading(true)
-    try {
-      await onMarkIncomplete(player.id)
-      onClose()
-    } catch (error) {
-      console.error('Error marking visit as incomplete:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'expired': return <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6" />
-      case 'expiring_soon': return <Clock className="h-5 w-5 sm:h-6 sm:w-6" />
-      case 'valid': return <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6" />
-      default: return null
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'expired': return 'bg-red-100 text-red-800 border-red-300'
-      case 'expiring_soon': return 'bg-orange-100 text-orange-800 border-orange-300'
-      case 'valid': return 'bg-green-100 text-green-800 border-green-300'
-      default: return 'bg-gray-100 text-gray-800 border-gray-300'
-    }
-  }
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'expired': return 'Scaduta'
-      case 'expiring_soon': return 'In Scadenza'
-      case 'valid': return 'Valida'
-      default: return 'Sconosciuto'
-    }
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString("it-IT", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
   }
 
   const getDaysUntilExpiry = (expiryDate: string) => {
     const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const expiry = new Date(expiryDate + 'T00:00:00')
-    const daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-    return daysUntilExpiry
+    const expiry = new Date(expiryDate)
+    const diffTime = expiry.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+    if (diffDays === 0) return "oggi"
+    if (diffDays === 1) return "domani"
+    if (diffDays < 0) return `scaduto da ${Math.abs(diffDays)} giorni`
+    return `${diffDays} giorni`
+  }
+
+  const getStatusColor = (daysUntilExpiry: string) => {
+    if (daysUntilExpiry.includes("scaduto")) return "bg-red-100 text-red-800 border-red-200"
+    if (daysUntilExpiry === "oggi" || daysUntilExpiry === "domani")
+      return "bg-orange-100 text-orange-800 border-orange-200"
+    return "bg-green-100 text-green-800 border-green-200"
+  }
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/jpg"]
+    if (!allowedTypes.includes(file.type)) {
+      alert("Formato file non supportato. Carica solo PDF o immagini (JPG, PNG).")
+      return
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Il file è troppo grande. Dimensione massima: 10MB.")
+      return
+    }
+
+    setUploadLoading(true)
+    setUploadProgress(0)
+    setUploadedFile({ name: file.name, type: file.type })
+    setIsUploadComplete(false)
+
+    const progressInterval = setInterval(() => {
+      setUploadProgress((prev) => {
+        if (prev >= 90) {
+          clearInterval(progressInterval)
+          return 90
+        }
+        return prev + Math.random() * 15
+      })
+    }, 200)
+
+    try {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const fileData = e.target?.result as string
+
+        const updates = {
+          medical_certificate: fileData,
+          medical_certificate_name: file.name,
+          medical_certificate_type: file.type,
+        }
+
+        if (onUpdatePlayer) {
+          onUpdatePlayer(player.id, updates)
+        }
+
+        clearInterval(progressInterval)
+        setUploadProgress(100)
+
+        setTimeout(() => {
+          setUploadLoading(false)
+          setShowSuccessModal(true)
+          setIsUploadComplete(true)
+        }, 500)
+      }
+      reader.readAsDataURL(file)
+    } catch (error) {
+      console.error("Error uploading file:", error)
+      alert("Errore durante il caricamento del file.")
+      clearInterval(progressInterval)
+      setUploadLoading(false)
+      setUploadProgress(0)
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    }
+  }
+
+  const handleMarkUploadComplete = () => {
+    setIsUploadComplete(true)
+    if (onUpdatePlayer) {
+      onUpdatePlayer(player.id, { visit_completed: true })
+    }
+  }
+
+  const handleDownloadCertificate = () => {
+    if (player.medical_certificate && player.medical_certificate_name) {
+      const link = document.createElement("a")
+      link.href = player.medical_certificate
+      link.download = player.medical_certificate_name
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
+  }
+
+  const handlePreviewCertificate = () => {
+    if (player.medical_certificate) {
+      window.open(player.medical_certificate, "_blank")
+    }
   }
 
   const daysUntilExpiry = getDaysUntilExpiry(player.medical_expiry_date)
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-2xl max-h-[95vh] overflow-y-auto bg-white border-0 shadow-2xl rounded-2xl p-0 gap-0">
-        {/* Header with Close Button */}
-        <div className="relative bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 sm:p-6 rounded-t-2xl">
-          <button
-            onClick={onClose}
-            className="absolute top-3 right-3 sm:top-4 sm:right-4 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all duration-200"
-          >
-            <X className="h-4 w-4 sm:h-5 sm:w-5" />
-          </button>
-          
-          <div className="flex items-center gap-3 sm:gap-4 pr-8 sm:pr-12">
-            <div className="relative flex-shrink-0">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                <span className="text-white font-bold text-lg sm:text-2xl">
-                  {player.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                </span>
-              </div>
-              {player.visit_completed && (
-                <div className="absolute -bottom-1 -right-1 sm:-bottom-2 sm:-right-2 w-6 h-6 sm:w-8 sm:h-8 bg-green-500 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
-                  <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
-                </div>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-xl sm:text-2xl font-bold truncate">{player.name}</h2>
-              <p className="text-blue-100 text-sm sm:text-base opacity-90">{player.position}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-          {/* Player Info Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <div className="bg-gray-50 rounded-xl p-3 sm:p-4 border border-gray-200">
-              <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500 flex-shrink-0" />
-                <span className="text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wide">Email</span>
-              </div>
-              <p className="text-sm sm:text-base font-semibold text-gray-800 truncate">{player.email}</p>
-            </div>
-            
-            <div className="bg-gray-50 rounded-xl p-3 sm:p-4 border border-gray-200">
-              <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                <Phone className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500 flex-shrink-0" />
-                <span className="text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wide">Telefono</span>
-              </div>
-              <p className="text-sm sm:text-base font-semibold text-gray-800">{player.phone}</p>
-            </div>
-          </div>
-
-          {/* Status Card */}
-          <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
-            <div className="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2 sm:gap-3">
-                <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
-                <span>Stato Visita Medica</span>
-              </h3>
-            </div>
-            
-            <div className="p-4 sm:p-6">
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
-                <div className={`inline-flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-xl border-2 ${getStatusColor(player.status)}`}>
-                  {React.cloneElement(getStatusIcon(player.status), { className: "h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" })}
-                  <span className="font-semibold text-sm sm:text-base">{getStatusText(player.status)}</span>
-                </div>
-                
-                <div className="text-right">
-                  <p className="text-xs sm:text-sm text-gray-500 mb-1">Giorni alla scadenza</p>
-                  <p className={`text-lg sm:text-xl font-bold ${
-                    daysUntilExpiry < 0 ? 'text-red-600' :
-                    daysUntilExpiry <= 7 ? 'text-orange-600' :
-                    daysUntilExpiry <= 30 ? 'text-yellow-600' :
-                    'text-green-600'
-                  }`}>
-                    {daysUntilExpiry < 0 
-                      ? `${Math.abs(daysUntilExpiry)} giorni fa`
-                      : daysUntilExpiry === 0 
-                      ? 'Oggi'
-                      : daysUntilExpiry === 1
-                      ? 'Domani'
-                      : `${daysUntilExpiry} giorni`
-                    }
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
-                <div className="text-center p-3 sm:p-4 bg-blue-50 rounded-xl border border-blue-200">
-                  <p className="text-xs sm:text-sm font-medium text-blue-600 mb-1 sm:mb-2">Data Visita</p>
-                  <p className="text-sm sm:text-base font-bold text-blue-800">
-                    {new Date(player.medical_exam_date).toLocaleDateString('it-IT', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric'
-                    })}
-                  </p>
-                </div>
-                
-                <div className="text-center p-3 sm:p-4 bg-purple-50 rounded-xl border border-purple-200">
-                  <p className="text-xs sm:text-sm font-medium text-purple-600 mb-1 sm:mb-2">Data Scadenza</p>
-                  <p className="text-sm sm:text-base font-bold text-purple-800">
-                    {new Date(player.medical_expiry_date).toLocaleDateString('it-IT', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric'
-                    })}
-                  </p>
-                </div>
-              </div>
-
-              {/* Current Status Display */}
-              {player.visit_completed ? (
-                <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 sm:p-6">
-                  <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
-                      <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-green-800 font-bold text-base sm:text-lg">✅ Visita Completata</h4>
-                      <p className="text-green-700 text-sm sm:text-base">
-                        Completata il {player.visit_completed_date ? 
-                          new Date(player.visit_completed_date).toLocaleDateString('it-IT', {
-                            weekday: 'long',
-                            day: '2-digit',
-                            month: 'long',
-                            year: 'numeric'
-                          }) : 
-                          'Data non disponibile'
-                        }
-                      </p>
-                    </div>
-                  </div>
-                  <div className="bg-green-100 rounded-lg p-3 sm:p-4">
-                    <p className="text-green-800 text-xs sm:text-sm font-medium">
-                      💡 <strong>Vuoi annullare il completamento?</strong> Puoi sempre modificare questo stato se necessario.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-4 sm:p-6">
-                  <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-600 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-orange-800 font-bold text-base sm:text-lg">⏳ Visita in Attesa</h4>
-                      <p className="text-orange-700 text-sm sm:text-base">
-                        La visita medica non è ancora stata completata
-                      </p>
-                    </div>
-                  </div>
-                  <div className="bg-orange-100 rounded-lg p-3 sm:p-4">
-                    <p className="text-orange-800 text-xs sm:text-sm font-medium">
-                      🎯 <strong>Pronto a confermare?</strong> Segna come completata quando la visita è stata effettuata.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6">
-            <h4 className="text-blue-800 font-semibold mb-3 sm:mb-4 text-sm sm:text-base flex items-center gap-2">
-              <span>🚀</span>
-              <span>Azioni Rapide</span>
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-10 sm:h-12 border-blue-300 text-blue-700 hover:bg-blue-100 text-xs sm:text-sm"
-                onClick={() => window.open(`mailto:${player.email}`)}
-              >
-                <Mail className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 flex-shrink-0" />
-                <span className="truncate">Invia Email</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-10 sm:h-12 border-blue-300 text-blue-700 hover:bg-blue-100 text-xs sm:text-sm"
-                onClick={() => window.open(`tel:${player.phone}`)}
-              >
-                <Phone className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 flex-shrink-0" />
-                <span className="truncate">Chiama</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer Actions */}
-        <div className="bg-gray-50 p-4 sm:p-6 rounded-b-2xl border-t border-gray-200">
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <Button 
-              variant="outline" 
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+          <DialogHeader className="relative bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 sm:p-6">
+            <button
               onClick={onClose}
-              className="flex-1 h-12 sm:h-14 text-base sm:text-lg border-2 border-gray-300 text-gray-700 hover:bg-gray-100 font-medium"
+              className="absolute right-4 top-4 text-white/80 hover:text-white transition-colors"
             >
-              Annulla
-            </Button>
-            
-            {player.visit_completed ? (
-              <Button 
-                onClick={handleMarkIncomplete}
-                disabled={loading}
-                className="flex-1 h-12 sm:h-14 text-base sm:text-lg bg-orange-600 hover:bg-orange-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                {loading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Aggiornamento...</span>
+              <X className="h-5 w-5 sm:h-6 sm:w-6" />
+            </button>
+
+            <div className="flex items-center gap-3 sm:gap-4 pr-8">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                <User className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-lg sm:text-xl font-bold text-white mb-1 truncate">
+                  {player.name}
+                </DialogTitle>
+                <p className="text-blue-100 text-sm sm:text-base">Stato Visita Medica</p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+            <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2 sm:gap-3">
+                    <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
+                    <span>Informazioni Visita</span>
+                  </h3>
+                  <Badge className={`text-xs sm:text-sm font-medium border ${getStatusColor(daysUntilExpiry)}`}>
+                    {player.visit_completed ? "Completata" : "In attesa"}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="p-4 sm:p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Calendar className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-gray-600 text-xs sm:text-sm">Data di nascita</p>
+                      <p className="text-gray-900 font-semibold text-sm sm:text-base truncate">
+                        {formatDate(player.birth_date)}
+                      </p>
+                    </div>
                   </div>
-                ) : (
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <Clock className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                    <span>Segna come Non Completata</span>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Clock className="h-4 w-4 text-orange-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-gray-600 text-xs sm:text-sm">Scadenza certificato</p>
+                      <p className="text-gray-900 font-semibold text-sm sm:text-base">{daysUntilExpiry}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {(player.phone || player.email) && (
+                  <div className="pt-4 border-t border-gray-200">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {player.phone && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(`tel:${player.phone}`, "_self")}
+                          className="h-10 sm:h-12 justify-start border-green-300 text-green-700 hover:bg-green-100 text-xs sm:text-sm bg-transparent"
+                        >
+                          <Phone className="h-3 w-3 sm:h-4 sm:w-4 mr-2 flex-shrink-0" />
+                          <span className="truncate">{player.phone}</span>
+                        </Button>
+                      )}
+
+                      {player.email && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(`mailto:${player.email}`, "_self")}
+                          className="h-10 sm:h-12 justify-start border-blue-300 text-blue-700 hover:bg-blue-100 text-xs sm:text-sm bg-transparent"
+                        >
+                          <Mail className="h-3 w-3 sm:h-4 sm:w-4 mr-2 flex-shrink-0" />
+                          <span className="truncate">{player.email}</span>
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 )}
-              </Button>
-            ) : (
-              <Button 
-                onClick={handleMarkCompleted}
-                disabled={loading}
-                className="flex-1 h-12 sm:h-14 text-base sm:text-lg bg-green-600 hover:bg-green-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-              >
-                {loading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Aggiornamento...</span>
-                  </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2 sm:gap-3">
+                  <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />
+                  <span>Certificato Medico</span>
+                </h3>
+              </div>
+
+              <div className="p-4 sm:p-6">
+                {player.medical_certificate ? (
+                  <>
+                    <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-green-50 border border-green-200 rounded-xl mb-4">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-green-800 font-semibold text-sm sm:text-base truncate">
+                            {player.medical_certificate_name}
+                          </p>
+                          {isUploadComplete && (
+                            <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Caricato
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-green-600 text-xs sm:text-sm">
+                          {player.medical_certificate_type === "application/pdf" ? "📄 Documento PDF" : "🖼️ Immagine"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePreviewCertificate}
+                        className="h-10 sm:h-12 border-blue-300 text-blue-700 hover:bg-blue-100 text-xs sm:text-sm bg-transparent"
+                      >
+                        <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 flex-shrink-0" />
+                        <span className="truncate">Visualizza</span>
+                      </Button>
+
+                      {player.visit_completed ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDownloadCertificate}
+                          className="h-10 sm:h-12 border-green-300 text-green-700 hover:bg-green-100 text-xs sm:text-sm bg-transparent"
+                        >
+                          <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 flex-shrink-0" />
+                          <span className="truncate">Scarica Certificato</span>
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadLoading}
+                          className="h-10 sm:h-12 border-orange-300 text-orange-700 hover:bg-orange-100 text-xs sm:text-sm bg-transparent"
+                        >
+                          {uploadLoading ? (
+                            <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-orange-600 mr-1 sm:mr-2"></div>
+                          ) : (
+                            <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 flex-shrink-0" />
+                          )}
+                          <span className="truncate">Sostituisci</span>
+                        </Button>
+                      )}
+                    </div>
+
+                    {!player.visit_completed && isUploadComplete && (
+                      <div className="pt-4 border-t border-gray-200">
+                        <Button
+                          onClick={handleMarkUploadComplete}
+                          className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-semibold"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Segna come Completato
+                        </Button>
+                      </div>
+                    )}
+                  </>
                 ) : (
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                    <span>Segna come Completata</span>
-                  </div>
+                  <>
+                    {uploadLoading && uploadedFile ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <FileText className="h-6 w-6 text-blue-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-blue-800 font-semibold text-sm truncate">{uploadedFile.name}</p>
+                            <p className="text-blue-600 text-xs">
+                              {uploadedFile.type === "application/pdf" ? "📄 Documento PDF" : "🖼️ Immagine"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Caricamento in corso...</span>
+                            <span className="text-blue-600 font-semibold">{Math.round(uploadProgress)}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${uploadProgress}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 sm:py-8">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                          <FileText className="h-8 w-8 sm:h-10 sm:w-10 text-gray-400" />
+                        </div>
+                        <h4 className="text-gray-800 font-semibold text-base sm:text-lg mb-2">
+                          Nessun certificato caricato
+                        </h4>
+                        <p className="text-gray-600 text-sm sm:text-base mb-6">
+                          {player.visit_completed
+                            ? "Il certificato medico non è disponibile per il download"
+                            : "Carica il certificato medico per completare la visita"}
+                        </p>
+
+                        {!player.visit_completed && (
+                          <Button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploadLoading}
+                            className="h-12 sm:h-14 px-6 sm:px-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm sm:text-base"
+                          >
+                            {uploadLoading ? (
+                              <div className="flex items-center gap-2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                <span>Caricamento...</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 sm:gap-3">
+                                <Plus className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                                <span>Carica Certificato</span>
+                              </div>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
-              </Button>
-            )}
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="w-[90vw] max-w-md">
+          <div className="text-center py-6">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Caricamento Completato!</h3>
+            <p className="text-gray-600 mb-6">Il certificato medico è stato caricato con successo.</p>
+            <Button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
+            >
+              Continua
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
