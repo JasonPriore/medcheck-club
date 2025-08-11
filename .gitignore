@@ -1,0 +1,19 @@
+cat > .gitignore << 'EOF'
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+# Build/Output
+.next/
+dist/
+build/
+.out/
+.vercel/
+.vite/
+coverage/
+# Env
+.env
+.env.*
+EOF
+
