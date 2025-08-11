@@ -428,16 +428,16 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
       </Dialog>
 
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <DialogContent className="w-[90vw] max-w-md">
-          <div className="text-center py-6">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="h-8 w-8 text-green-600" />
+        <DialogContent className="w-[95vw] sm:w-auto max-w-sm sm:max-w-md p-0 rounded-2xl">
+          <div className="text-center p-5 sm:p-6">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="h-7 w-7 sm:h-8 sm:w-8 text-green-600" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Caricamento Completato!</h3>
-            <p className="text-gray-600 mb-6">Il certificato medico è stato caricato con successo.</p>
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">Caricamento completato</h3>
+            <p className="text-sm sm:text-base text-gray-600 mb-5">Il certificato medico è stato caricato con successo.</p>
             <Button
               onClick={() => setShowSuccessModal(false)}
-              className="w-full bg-green-600 hover:bg-green-700 text-white"
+              className="w-full h-11 sm:h-12 bg-green-600 hover:bg-green-700 text-white"
             >
               Continua
             </Button>
