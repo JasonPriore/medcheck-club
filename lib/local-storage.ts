@@ -634,12 +634,12 @@ export function getExpiringPlayers(): Promise<Player[]> {
   })
 }
 
-// Subscription limits
+// Subscription limits for different plans
 export const SUBSCRIPTION_LIMITS = {
   base: { teams: 2, players: 50, price: 80 },
   plus: { teams: 5, players: 100, price: 200 },
-  custom: { teams: -1, players: -1, price: 0 } // Unlimited
-}
+  custom: { teams: 10, players: 200, price: 500 } // Configurable limits instead of infinite
+} as const
 
 // Check if user can add more teams
 export function canAddTeam(userId: string): Promise<{ canAdd: boolean; currentTeams: number; maxTeams: number; error: string | null }> {
@@ -670,11 +670,6 @@ export function canAddTeam(userId: string): Promise<{ canAdd: boolean; currentTe
         const userTeams = teams.filter((t: Team) => t.user_id === userId)
         const currentTeams = userTeams.length
         const maxTeams = SUBSCRIPTION_LIMITS[user.subscription_plan as keyof typeof SUBSCRIPTION_LIMITS].teams
-
-        if (maxTeams === -1) { // Custom plan
-          resolve({ canAdd: true, currentTeams, maxTeams: -1, error: null })
-          return
-        }
 
         resolve({ canAdd: currentTeams < maxTeams, currentTeams, maxTeams, error: null })
       } catch (error) {
@@ -709,17 +704,18 @@ export function canAddPlayer(userId: string): Promise<{ canAdd: boolean; current
           }
         }
 
+        // Get all teams for this user
         const teams = JSON.parse(localStorage.getItem('medcheck_teams') || '[]')
         const userTeams = teams.filter((t: Team) => t.user_id === userId)
+        
+        // Get all players that belong to user's teams
         const players = JSON.parse(localStorage.getItem('medcheck_players') || '[]')
-        const userPlayers = players.filter((p: Player) => userTeams.some((t: Team) => t.id === p.team_id))
+        const userPlayers = players.filter((p: Player) => 
+          userTeams.some((t: Team) => t.id === p.team_id)
+        )
+        
         const currentPlayers = userPlayers.length
         const maxPlayers = SUBSCRIPTION_LIMITS[user.subscription_plan as keyof typeof SUBSCRIPTION_LIMITS].players
-
-        if (maxPlayers === -1) { // Custom plan
-          resolve({ canAdd: true, currentPlayers, maxPlayers: -1, error: null })
-          return
-        }
 
         resolve({ canAdd: currentPlayers < maxPlayers, currentPlayers, maxPlayers, error: null })
       } catch (error) {
@@ -749,6 +745,45 @@ export function updateUserOrganization(userId: string, updates: Partial<User>): 
         resolve({ error: null })
       } catch (error) {
         resolve({ error: 'Error updating user organization' })
+      }
+    }, 100)
+  })
+}
+
+// Get accurate player count for a user
+export function getUserPlayerCount(userId: string): Promise<{ currentPlayers: number; maxPlayers: number; canAdd: boolean }> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      try {
+        const users = JSON.parse(localStorage.getItem('medcheck_users') || '[]')
+        const user = users.find((u: User) => u.id === userId)
+        if (!user) {
+          resolve({ currentPlayers: 0, maxPlayers: 0, canAdd: false })
+          return
+        }
+
+        // Ensure user has valid subscription plan
+        if (!user.subscription_plan || !SUBSCRIPTION_LIMITS[user.subscription_plan as keyof typeof SUBSCRIPTION_LIMITS]) {
+          user.subscription_plan = 'base'
+          user.subscription_price = 80
+        }
+
+        // Get all teams for this user
+        const teams = JSON.parse(localStorage.getItem('medcheck_teams') || '[]')
+        const userTeams = teams.filter((t: Team) => t.user_id === userId)
+        
+        // Get all players that belong to user's teams
+        const players = JSON.parse(localStorage.getItem('medcheck_players') || '[]')
+        const userPlayers = players.filter((p: Player) => 
+          userTeams.some((t: Team) => t.id === p.team_id)
+        )
+        
+        const currentPlayers = userPlayers.length
+        const maxPlayers = SUBSCRIPTION_LIMITS[user.subscription_plan as keyof typeof SUBSCRIPTION_LIMITS].players
+
+        resolve({ currentPlayers, maxPlayers, canAdd: currentPlayers < maxPlayers })
+      } catch (error) {
+        resolve({ currentPlayers: 0, maxPlayers: 0, canAdd: false })
       }
     }, 100)
   })

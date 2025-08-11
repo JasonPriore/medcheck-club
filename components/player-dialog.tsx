@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Upload, FileText, Download, Eye, X, Camera, Users } from "lucide-react"
-import { createPlayer, updatePlayer, canAddPlayer, SUBSCRIPTION_LIMITS } from "@/lib/local-storage"
+import { createPlayer, updatePlayer, canAddPlayer, SUBSCRIPTION_LIMITS, getUserPlayerCount } from "@/lib/local-storage"
 
 interface Player {
   id: string
@@ -55,56 +55,58 @@ export function PlayerDialog({ isOpen, onClose, onSave, player, teamId }: Player
   const [loading, setLoading] = useState(false)
   const [filePreview, setFilePreview] = useState<string | null>(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
-  const [playerLimits, setPlayerLimits] = useState<{ current: number; max: number } | null>(null)
+  const [playerLimits, setPlayerLimits] = useState({ current: 0, max: 0 })
 
   // Get player limits when dialog opens
   useEffect(() => {
     const fetchPlayerLimits = async () => {
       try {
-        // This would need to be passed from parent component
-        // For now, we'll show a placeholder
-        setPlayerLimits({ current: 0, max: 50 })
+        // Get the current user ID from the team
+        const teams = JSON.parse(localStorage.getItem('medcheck_teams') || '[]')
+        const currentTeam = teams.find((t: any) => t.id === teamId)
+        if (currentTeam) {
+          const limits = await getUserPlayerCount(currentTeam.user_id)
+          setPlayerLimits({ current: limits.currentPlayers, max: limits.maxPlayers })
+        }
       } catch (error) {
         console.error("Error fetching player limits:", error)
       }
     }
     
-    if (isOpen && !player) {
-      fetchPlayerLimits()
-    }
-  }, [isOpen, player])
-
-  useEffect(() => {
-    if (player) {
-      setFormData({
-        name: player.name,
-        email: player.email,
-        phone: player.phone,
-        position: player.position,
-        medical_exam_date: player.medical_exam_date,
-        medical_expiry_date: player.medical_expiry_date,
-        medical_certificate: player.medical_certificate || "",
-        medical_certificate_name: player.medical_certificate_name || "",
-        medical_certificate_type: player.medical_certificate_type || "",
-      })
-      if (player.medical_certificate) {
-        setFilePreview(player.medical_certificate)
+    if (isOpen) {
+      if (player) {
+        setFormData({
+          name: player.name,
+          email: player.email,
+          phone: player.phone,
+          position: player.position,
+          medical_exam_date: player.medical_exam_date,
+          medical_expiry_date: player.medical_expiry_date,
+          medical_certificate: player.medical_certificate || "",
+          medical_certificate_name: player.medical_certificate_name || "",
+          medical_certificate_type: player.medical_certificate_type || "",
+        })
+        if (player.medical_certificate) {
+          setFilePreview(player.medical_certificate)
+        }
+      } else {
+        // Reset form for new player
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          position: "",
+          medical_exam_date: "",
+          medical_expiry_date: "",
+          medical_certificate: "",
+          medical_certificate_name: "",
+          medical_certificate_type: "",
+        })
+        // Fetch player limits for new player
+        fetchPlayerLimits()
       }
-    } else {
-      setFormData({
-        name: "",
-        email: "",
-        phone: "",
-        position: "",
-        medical_exam_date: "",
-        medical_expiry_date: "",
-        medical_certificate: "",
-        medical_certificate_name: "",
-        medical_certificate_type: "",
-      })
-      setFilePreview(null)
     }
-  }, [player, isOpen])
+  }, [isOpen, player, teamId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -416,7 +418,7 @@ export function PlayerDialog({ isOpen, onClose, onSave, player, teamId }: Player
             </div>
 
             {/* Player Limits Info */}
-            {!player && playerLimits && (
+            {!player && (
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <Users className="h-4 w-4 text-blue-600" />

@@ -5,12 +5,12 @@ import * as React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Users, AlertTriangle, CheckCircle, List, Home, ArrowLeft, LogOut, CheckCircle2, Clock, Settings } from "lucide-react"
+import { Users, AlertTriangle, CheckCircle, List, Home, ArrowLeft, LogOut, CheckCircle2, Clock, Settings, XCircle } from "lucide-react"
 import { PlayerDialog } from "@/components/player-dialog"
 import { CalendarView } from "@/components/calendar-view"
 import { ListView } from "@/components/list-view"
 import { VisitStatusDialog } from "@/components/visit-status-dialog"
-import { getPlayers, signOut, markVisitCompleted, markVisitIncomplete, updatePlayer, canAddTeam, canAddPlayer } from "@/lib/local-storage"
+import { getPlayers, signOut, markVisitCompleted, markVisitIncomplete, updatePlayer, canAddTeam, canAddPlayer, getUserPlayerCount } from "@/lib/local-storage"
 import { SettingsDialog } from "@/components/settings-dialog"
 
 interface User {
@@ -64,6 +64,7 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
   const [visitStatusPlayer, setVisitStatusPlayer] = useState<Player | null>(null)
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [playerLimits, setPlayerLimits] = useState({ current: 0, max: 0 })
 
   // Ensure user has required subscription fields
   const safeUser = {
@@ -77,6 +78,7 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
 
   useEffect(() => {
     fetchPlayers()
+    fetchPlayerLimits()
   }, [team.id])
 
   const fetchPlayers = async () => {
@@ -91,6 +93,15 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
       console.error("Error fetching players:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchPlayerLimits = async () => {
+    try {
+      const limits = await getUserPlayerCount(safeUser.id)
+      setPlayerLimits({ current: limits.currentPlayers, max: limits.maxPlayers })
+    } catch (error) {
+      console.error('Error fetching player limits:', error)
     }
   }
 
@@ -281,53 +292,55 @@ export function Dashboard({ user, team, onTeamChange, onLogout }: DashboardProps
         {activeTab === "home" && (
           <div className="p-4 space-y-6">
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              <Card className="bg-white border-gray-200 shadow-lg">
-                <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
-                  <CardTitle className="text-sm sm:text-lg text-gray-700 flex items-center flex-wrap gap-1 sm:gap-2">
-                    <Users className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                    <span className="truncate">Totale</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-6 pt-0">
-                  <div className="text-2xl sm:text-3xl font-bold text-gray-800">{players.length}</div>
-                </CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+              <Card className="p-3 sm:p-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600">Validi</p>
+                    <p className="text-lg sm:text-xl font-bold text-green-600">{validPlayers}</p>
+                  </div>
+                </div>
               </Card>
 
-              <Card className="bg-white border-gray-200 shadow-lg">
-                <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
-                  <CardTitle className="text-sm sm:text-lg text-gray-700 flex items-center flex-wrap gap-1 sm:gap-2">
-                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />
-                    <span className="truncate">Completate</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-6 pt-0">
-                  <div className="text-2xl sm:text-3xl font-bold text-green-600">{completedVisits}</div>
-                </CardContent>
+              <Card className="p-3 sm:p-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600">In Scadenza</p>
+                    <p className="text-lg sm:text-xl font-bold text-orange-600">{expiringSoonPlayers}</p>
+                  </div>
+                </div>
               </Card>
 
-              <Card className="bg-white border-gray-200 shadow-lg">
-                <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
-                  <CardTitle className="text-sm sm:text-lg text-gray-700 flex items-center flex-wrap gap-1 sm:gap-2">
-                    <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 flex-shrink-0" />
-                    <span className="truncate">In Scadenza</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-6 pt-0">
-                  <div className="text-2xl sm:text-3xl font-bold text-orange-600">{expiringSoonPlayers}</div>
-                </CardContent>
+              <Card className="p-3 sm:p-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-2 bg-red-100 rounded-lg">
+                    <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600">Scaduti</p>
+                    <p className="text-lg sm:text-xl font-bold text-red-600">{expiredPlayers}</p>
+                  </div>
+                </div>
               </Card>
 
-              <Card className="bg-white border-gray-200 shadow-lg">
-                <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
-                  <CardTitle className="text-sm sm:text-lg text-gray-700 flex items-center flex-wrap gap-1 sm:gap-2">
-                    <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 flex-shrink-0" />
-                    <span className="truncate">Scadute</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-3 sm:p-6 pt-0">
-                  <div className="text-2xl sm:text-3xl font-bold text-red-600">{expiredPlayers}</div>
-                </CardContent>
+              <Card className="p-3 sm:p-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600">Totale</p>
+                    <p className="text-lg sm:text-xl font-bold text-blue-600">
+                      {playerLimits.current}/{playerLimits.max}
+                    </p>
+                  </div>
+                </div>
               </Card>
             </div>
 

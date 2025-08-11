@@ -44,59 +44,29 @@ export function SettingsDialog({ user, isOpen, onClose, onUpdate }: SettingsDial
     organization_name: user.organization_name || "",
     organization_logo: user.organization_logo || ""
   })
-  const [loading, setLoading] = useState(false)
-  const [logoPreview, setLogoPreview] = useState<string | null>(user.organization_logo || null)
-
-  useEffect(() => {
-    setFormData({
-      organization_name: user.organization_name || "",
-      organization_logo: user.organization_logo || ""
-    })
-    setLogoPreview(user.organization_logo || null)
-  }, [user, isOpen])
-
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert("Il logo è troppo grande. Dimensione massima: 2MB")
-        return
-      }
-
-      const allowedTypes = ["image/jpeg", "image/png", "image/jpg"]
-      if (!allowedTypes.includes(file.type)) {
-        alert("Tipo di file non supportato. Usa JPG o PNG")
-        return
-      }
-
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const result = event.target?.result as string
-        setFormData(prev => ({ ...prev, organization_logo: result }))
-        setLogoPreview(result)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  const handleRemoveLogo = () => {
-    setFormData(prev => ({ ...prev, organization_logo: "" }))
-    setLogoPreview(null)
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-
     try {
       await updateUserOrganization(user.id, formData)
       onUpdate()
       onClose()
     } catch (error) {
       console.error("Error updating organization:", error)
-      alert("Errore durante l'aggiornamento delle informazioni")
-    } finally {
-      setLoading(false)
+    }
+  }
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = () => {
+        setFormData(prev => ({
+          ...prev,
+          organization_logo: reader.result as string
+        }))
+      }
+      reader.readAsDataURL(file)
     }
   }
 
@@ -111,9 +81,6 @@ export function SettingsDialog({ user, isOpen, onClose, onUpdate }: SettingsDial
     }
     
     const limits = SUBSCRIPTION_LIMITS[plan as keyof typeof SUBSCRIPTION_LIMITS]
-    if (plan === "custom") {
-      return { teams: "Illimitato", players: "Illimitato", price: "Contattaci" }
-    }
     return {
       teams: `${limits.teams} squadre`,
       players: `${limits.players} giocatori`,
@@ -172,88 +139,39 @@ export function SettingsDialog({ user, isOpen, onClose, onUpdate }: SettingsDial
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="org-name">Nome Club/Organizzazione</Label>
-                  <Input
-                    id="org-name"
-                    value={formData.organization_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, organization_name: e.target.value }))}
-                    placeholder="Inserisci il nome del club"
-                    className="h-11"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Logo Organizzazione</Label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                    {!logoPreview ? (
-                      <div className="text-center">
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                            <Camera className="h-8 w-8 text-blue-600" />
-                          </div>
-                          <p className="text-gray-700 font-medium">Carica logo</p>
-                          <p className="text-gray-500 text-sm">JPG o PNG (max 2MB)</p>
-                          <label htmlFor="logo-upload" className="cursor-pointer">
-                            <Button type="button" variant="outline" className="bg-blue-600 hover:bg-blue-700 text-white">
-                              Seleziona File
-                            </Button>
-                            <input
-                              id="logo-upload"
-                              type="file"
-                              accept="image/*"
-                              onChange={handleLogoUpload}
-                              className="hidden"
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-4">
-                        <img
-                          src={logoPreview}
-                          alt="Logo organizzazione"
-                          className="w-16 h-16 object-contain bg-gray-50 rounded-lg"
-                        />
-                        <div className="flex-1">
-                          <p className="text-gray-700 font-medium">Logo caricato</p>
-                          <p className="text-gray-500 text-sm">Clicca Sostituisci per cambiarlo</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <label htmlFor="logo-replace" className="cursor-pointer">
-                            <Button type="button" variant="outline" size="sm">
-                              Sostituisci
-                            </Button>
-                            <input
-                              id="logo-replace"
-                              type="file"
-                              accept="image/*"
-                              onChange={handleLogoUpload}
-                              className="hidden"
-                            />
-                          </label>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={handleRemoveLogo}
-                            className="border-red-300 text-red-700 hover:bg-red-50"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="organization_name">Nome Organizzazione</Label>
+                    <Input
+                      id="organization_name"
+                      value={formData.organization_name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, organization_name: e.target.value }))}
+                      placeholder="Inserisci il nome della tua organizzazione sportiva"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="organization_logo">Logo/Immagine Organizzazione (Opzionale)</Label>
+                    <Input
+                      id="organization_logo"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="cursor-pointer"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Formati supportati: JPG, PNG, SVG. Dimensione massima: 5MB
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex gap-3 pt-4">
                   <Button
                     type="submit"
-                    disabled={loading}
+                    disabled={false} // Removed loading state
                     className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    {loading ? "Salvataggio..." : "Salva Modifiche"}
+                    Salva Modifiche
                   </Button>
                   <Button
                     type="button"
@@ -345,6 +263,13 @@ export function SettingsDialog({ user, isOpen, onClose, onUpdate }: SettingsDial
                         <span className="text-gray-700">Giocatori</span>
                       </div>
                       <span className="font-semibold">{subscriptionInfo.players}</span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="h-4 w-4 text-purple-600" />
+                        <span className="text-gray-700">Prezzo</span>
+                      </div>
+                      <span className="font-semibold">{subscriptionInfo.price}</span>
                     </div>
                   </div>
 
