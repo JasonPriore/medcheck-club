@@ -176,13 +176,12 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
           <DialogHeader className="relative bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 sm:p-6">
-
-            <div className="flex items-center gap-3 sm:gap-4 pr-12 sm:pr-14">
+            <div className="flex items-start sm:items-center gap-3 sm:gap-4 pr-12 sm:pr-14">
               <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
                 <User className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
               </div>
-              <div className="min-w-0">
-                <DialogTitle className="text-lg sm:text-xl font-bold text-white mb-1 truncate">
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="text-lg sm:text-xl font-bold text-white mb-1 break-words leading-tight">
                   {player.name}
                 </DialogTitle>
                 <p className="text-blue-100 text-sm sm:text-base">Stato Visita Medica</p>
@@ -193,12 +192,12 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
           <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
             <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
               <div className="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
                   <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2 sm:gap-3">
                     <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
                     <span>Informazioni Visita</span>
                   </h3>
-                  <Badge className={`text-xs sm:text-sm font-medium border ${getStatusColor(daysUntilExpiry)}`}>
+                  <Badge className={`text-xs sm:text-sm font-medium border w-fit ${getStatusColor(daysUntilExpiry)}`}>
                     {player.visit_completed ? "Completata" : "In attesa"}
                   </Badge>
                 </div>
@@ -210,9 +209,9 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
                     <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                       <Calendar className="h-4 w-4 text-blue-600" />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-gray-600 text-xs sm:text-sm">Data visita medica</p>
-                      <p className="text-gray-900 font-semibold text-sm sm:text-base truncate">
+                      <p className="text-gray-900 font-semibold text-sm sm:text-base break-words leading-tight">
                         {formatDate(player.medical_exam_date)}
                       </p>
                     </div>
@@ -222,9 +221,9 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
                     <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
                       <Clock className="h-4 w-4 text-orange-600" />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-gray-600 text-xs sm:text-sm">Scadenza certificato</p>
-                      <p className="text-gray-900 font-semibold text-sm sm:text-base">{daysUntilExpiry}</p>
+                      <p className="text-gray-900 font-semibold text-sm sm:text-base break-words">{daysUntilExpiry}</p>
                     </div>
                   </div>
                 </div>
@@ -237,7 +236,7 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
                           variant="outline"
                           size="sm"
                           onClick={() => window.open(`tel:${player.phone}`, "_self")}
-                          className="h-10 sm:h-12 justify-start border-green-300 text-green-700 hover:bg-green-100 text-xs sm:text-sm bg-transparent"
+                          className="h-10 sm:h-12 justify-start border-green-300 text-green-700 hover:bg-green-100 text-xs sm:text-sm bg-transparent min-w-0"
                         >
                           <Phone className="h-3 w-3 sm:h-4 sm:w-4 mr-2 flex-shrink-0" />
                           <span className="truncate">{player.phone}</span>
@@ -249,7 +248,7 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
                           variant="outline"
                           size="sm"
                           onClick={() => window.open(`mailto:${player.email}`, "_self")}
-                          className="h-10 sm:h-12 justify-start border-blue-300 text-blue-700 hover:bg-blue-100 text-xs sm:text-sm bg-transparent"
+                          className="h-10 sm:h-12 justify-start border-blue-300 text-blue-700 hover:bg-blue-100 text-xs sm:text-sm bg-transparent min-w-0"
                         >
                           <Mail className="h-3 w-3 sm:h-4 sm:w-4 mr-2 flex-shrink-0" />
                           <span className="truncate">{player.email}</span>
@@ -272,17 +271,17 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
               <div className="p-4 sm:p-6">
                 {(player.medical_certificate || localFileData) ? (
                   <>
-                    <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-green-50 border border-green-200 rounded-xl mb-4">
+                    <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 p-3 sm:p-4 bg-green-50 border border-green-200 rounded-xl mb-4">
                       <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
                         <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="text-green-800 font-semibold text-sm sm:text-base truncate">
+                      <div className="min-w-0 flex-1 w-full">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
+                          <p className="text-green-800 font-semibold text-sm sm:text-base break-words leading-tight">
                             {player.medical_certificate_name || uploadedFile?.name}
                           </p>
                           {(isUploadComplete || !!(player.medical_certificate || localFileData)) && (
-                            <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">
+                            <Badge className="bg-green-100 text-green-800 border-green-200 text-xs w-fit">
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Caricato
                             </Badge>
@@ -299,62 +298,43 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
                         variant="outline"
                         size="sm"
                         onClick={handlePreviewCertificate}
-                        className="h-10 sm:h-12 border-blue-300 text-blue-700 hover:bg-blue-100 text-xs sm:text-sm bg-transparent"
+                        className="h-10 sm:h-12 justify-start border-blue-300 text-blue-700 hover:bg-blue-100 text-xs sm:text-sm bg-transparent min-w-0"
                       >
-                        <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 flex-shrink-0" />
+                        <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-2 flex-shrink-0" />
                         <span className="truncate">Visualizza</span>
                       </Button>
 
-                      {player.visit_completed ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleDownloadCertificate}
-                          className="h-10 sm:h-12 border-green-300 text-green-700 hover:bg-green-100 text-xs sm:text-sm bg-transparent"
-                        >
-                          <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 flex-shrink-0" />
-                          <span className="truncate">Scarica Certificato</span>
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={uploadLoading}
-                          className="h-10 sm:h-12 border-orange-300 text-orange-700 hover:bg-orange-100 text-xs sm:text-sm bg-transparent"
-                        >
-                          {uploadLoading ? (
-                            <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-orange-600 mr-1 sm:mr-2"></div>
-                          ) : (
-                            <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 flex-shrink-0" />
-                          )}
-                          <span className="truncate">Sostituisci</span>
-                        </Button>
-                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownloadCertificate}
+                        className="h-10 sm:h-12 justify-start border-green-300 text-green-700 hover:bg-green-100 text-xs sm:text-sm bg-transparent min-w-0"
+                      >
+                        <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-2 flex-shrink-0" />
+                        <span className="truncate">Scarica</span>
+                      </Button>
                     </div>
 
-                    {!player.visit_completed && !!(player.medical_certificate || localFileData) && (
-                      <div className="pt-4 border-t border-gray-200">
-                        <Button
-                          onClick={handleMarkUploadComplete}
-                          className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-semibold"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Segna come Completato
-                        </Button>
-                      </div>
-                    )}
+                    <div className="pt-4 border-t border-gray-200">
+                      <Button
+                        onClick={handleMarkUploadComplete}
+                        className="w-full h-10 sm:h-12 bg-green-600 hover:bg-green-700 text-white text-sm sm:text-base font-medium"
+                      >
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                        Segna come Completato
+                      </Button>
+                    </div>
                   </>
                 ) : (
                   <>
                     {uploadLoading && uploadedFile ? (
                       <div className="space-y-4">
-                        <div className="flex items-center gap-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                        <div className="flex flex-col sm:flex-row items-start gap-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
                           <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
                             <FileText className="h-6 w-6 text-blue-600" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-blue-800 font-semibold text-sm truncate">{uploadedFile.name}</p>
+                            <p className="text-blue-800 font-semibold text-sm break-words leading-tight">{uploadedFile.name}</p>
                             <p className="text-blue-600 text-xs">
                               {uploadedFile.type === "application/pdf" ? "📄 Documento PDF" : "🖼️ Immagine"}
                             </p>
@@ -375,51 +355,48 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center py-6 sm:py-8">
-                        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                          <FileText className="h-8 w-8 sm:h-10 sm:w-10 text-gray-400" />
+                      <div className="text-center py-8 sm:py-12">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                          <Upload className="h-8 w-8 sm:h-10 sm:w-10 text-gray-400" />
                         </div>
-                        <h4 className="text-gray-800 font-semibold text-base sm:text-lg mb-2">
-                          Nessun certificato caricato
-                        </h4>
-                        <p className="text-gray-600 text-sm sm:text-base mb-6">
-                          {player.visit_completed
-                            ? "Il certificato medico non è disponibile per il download"
-                            : "Carica il certificato medico per completare la visita"}
+                        <h3 className="text-lg sm:text-xl font-medium text-gray-800 mb-2 sm:mb-3">Nessun Certificato Caricato</h3>
+                        <p className="text-gray-600 text-sm sm:text-base mb-4 sm:mb-6">
+                          Carica il certificato medico per completare la visita
                         </p>
-
-                        {!player.visit_completed && (
-                          <Button
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={uploadLoading}
-                            className="h-12 sm:h-14 px-6 sm:px-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm sm:text-base"
-                          >
-                            {uploadLoading ? (
-                              <div className="flex items-center gap-2">
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                <span>Caricamento...</span>
+                        
+                        <div className="space-y-3 sm:space-y-4">
+                          <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 sm:p-6">
+                            <div className="text-center">
+                              <div className="flex flex-col items-center gap-2 sm:gap-3">
+                                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                                  <Upload className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+                                </div>
+                                <div>
+                                  <p className="text-gray-700 font-medium text-sm sm:text-base mb-1">Carica certificato medico</p>
+                                  <p className="text-gray-500 text-xs sm:text-sm">PDF o immagini (JPG, PNG) - max 10MB</p>
+                                </div>
+                                <label htmlFor="file-upload" className="cursor-pointer">
+                                  <Button type="button" className="bg-blue-600 hover:bg-blue-700 text-white text-sm sm:text-base">
+                                    Seleziona File
+                                  </Button>
+                                  <input
+                                    id="file-upload"
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    onChange={handleFileUpload}
+                                    className="hidden"
+                                    ref={fileInputRef}
+                                  />
+                                </label>
                               </div>
-                            ) : (
-                              <div className="flex items-center gap-2 sm:gap-3">
-                                <Plus className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                                <span>Carica Certificato</span>
-                              </div>
-                            )}
-                          </Button>
-                        )}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </>
                 )}
               </div>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
             </div>
           </div>
         </DialogContent>

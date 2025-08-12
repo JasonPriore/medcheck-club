@@ -173,10 +173,18 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
         {/* Info Section */}
         <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-gray-50 border border-gray-200 rounded-lg">
-          <p className="text-gray-700 text-xs sm:text-sm text-center">
+          <p className="text-gray-700 text-xs sm:text-sm text-center mb-2">
             <strong>Versione Demo:</strong> Tutti i dati sono salvati localmente nel browser. 
             Perfetto per testare tutte le funzionalità senza configurazione.
           </p>
+          <div className="text-center">
+            <a 
+              href="/backoffice"
+              className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs font-medium transition-colors"
+            >
+              🏢 Accesso Amministratori
+            </a>
+          </div>
         </div>
       </div>
     </div>
