@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,7 +17,9 @@ import {
   Camera,
   X,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Upload,
+  FileImage
 } from "lucide-react"
 import { updateUserOrganization, SUBSCRIPTION_LIMITS } from "@/lib/local-storage"
 
@@ -44,29 +46,205 @@ export function SettingsDialog({ user, isOpen, onClose, onUpdate }: SettingsDial
     organization_name: user.organization_name || "",
     organization_logo: user.organization_logo || ""
   })
+  const [uploadStatus, setUploadStatus] = useState<{
+    loading: boolean
+    error: string | null
+    success: boolean
+  }>({
+    loading: false,
+    error: null,
+    success: false
+  })
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(user.organization_logo || null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Reset form when user changes
+  useEffect(() => {
+    setFormData({
+      organization_name: user.organization_name || "",
+      organization_logo: user.organization_logo || ""
+    })
+    setPreviewUrl(user.organization_logo || null)
+    setSelectedFile(null)
+    setUploadStatus({ loading: false, error: null, success: false })
+  }, [user])
+
+  // Ensure file input is properly initialized
+  useEffect(() => {
+    if (fileInputRef.current) {
+      console.log('File input found and initialized')
+      console.log('File input element:', fileInputRef.current)
+      console.log('File input type:', fileInputRef.current.type)
+      console.log('File input accept:', fileInputRef.current.accept)
+      
+      // Remove any existing event listeners to avoid duplicates
+      const currentRef = fileInputRef.current
+      const handleChange = (e: Event) => {
+        console.log('File input change event listener triggered')
+        console.log('Event:', e)
+        console.log('Event target:', e.target)
+      }
+      
+      currentRef.addEventListener('change', handleChange)
+      
+      return () => {
+        currentRef.removeEventListener('change', handleChange)
+      }
+    } else {
+      console.log('File input not found')
+    }
+  }, [isOpen])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (uploadStatus.loading) return
+
+    console.log('Submitting form with data:', formData)
+    console.log('Organization logo length:', formData.organization_logo?.length || 0)
+
+    setUploadStatus({ loading: true, error: null, success: false })
+    
     try {
-      await updateUserOrganization(user.id, formData)
-      onUpdate()
-      onClose()
+      const result = await updateUserOrganization(user.id, formData)
+      console.log('Update result:', result)
+      
+      if (result.error) {
+        throw new Error(result.error)
+      }
+      
+      setUploadStatus({ loading: false, error: null, success: true })
+      
+      // Show success message briefly before closing
+      setTimeout(() => {
+        onUpdate()
+        onClose()
+      }, 1000)
     } catch (error) {
       console.error("Error updating organization:", error)
+      setUploadStatus({ 
+        loading: false, 
+        error: "Errore durante il salvataggio. Riprova.", 
+        success: false 
+      })
     }
   }
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('File upload event triggered:', e)
+    console.log('Event target:', e.target)
+    console.log('Event target files:', e.target.files)
+    
     const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = () => {
-        setFormData(prev => ({
+    console.log('File selected:', file)
+    
+    if (!file) {
+      console.log('No file selected')
+      return
+    }
+
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/svg+xml"]
+    console.log('File type:', file.type, 'Allowed types:', allowedTypes)
+    console.log('File type check result:', allowedTypes.includes(file.type))
+    
+    if (!allowedTypes.includes(file.type)) {
+      console.log('File type not allowed')
+      setUploadStatus({
+        loading: false,
+        error: "Formato file non supportato. Carica solo JPG, PNG o SVG.",
+        success: false
+      })
+      return
+    }
+
+    // Validate file size (5MB limit)
+    console.log('File size:', file.size, 'bytes')
+    console.log('File size check result:', file.size <= 5 * 1024 * 1024)
+    
+    if (file.size > 5 * 1024 * 1024) {
+      console.log('File too large')
+      setUploadStatus({
+        loading: false,
+        error: "Il file è troppo grande. Dimensione massima: 5MB.",
+        success: false
+      })
+      return
+    }
+
+    console.log('File validation passed, proceeding with upload')
+    setSelectedFile(file)
+    setUploadStatus({ loading: false, error: null, success: false })
+
+    // Create preview
+    const reader = new FileReader()
+    
+    reader.onload = () => {
+      const result = reader.result as string
+      console.log('File read successfully, result length:', result.length)
+      console.log('Result type:', typeof result)
+      console.log('Result starts with data:', result.startsWith('data:'))
+      
+      setPreviewUrl(result)
+      setFormData(prev => {
+        const newData = {
           ...prev,
-          organization_logo: reader.result as string
-        }))
+          organization_logo: result
+        }
+        console.log('Updated formData:', newData)
+        return newData
+      })
+      console.log('Updated formData with logo')
+    }
+    
+    reader.onerror = (error) => {
+      console.error('Error reading file:', error)
+      setUploadStatus({
+        loading: false,
+        error: "Errore durante la lettura del file.",
+        success: false
+      })
+    }
+    
+    reader.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const progress = (event.loaded / event.total) * 100
+        console.log('File reading progress:', progress.toFixed(2) + '%')
       }
-      reader.readAsDataURL(file)
+    }
+    
+    console.log('Starting to read file...')
+    reader.readAsDataURL(file)
+  }
+
+  const removeLogo = () => {
+    setSelectedFile(null)
+    setPreviewUrl(null)
+    setFormData(prev => ({
+      ...prev,
+      organization_logo: ""
+    }))
+    setUploadStatus({ loading: false, error: null, success: false })
+    
+    // Reset the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const resetForm = () => {
+    setFormData({
+      organization_name: user.organization_name || "",
+      organization_logo: user.organization_logo || ""
+    })
+    setPreviewUrl(user.organization_logo || null)
+    setSelectedFile(null)
+    setUploadStatus({ loading: false, error: null, success: false })
+    
+    // Reset the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
     }
   }
 
@@ -147,37 +325,151 @@ export function SettingsDialog({ user, isOpen, onClose, onUpdate }: SettingsDial
                       value={formData.organization_name}
                       onChange={(e) => setFormData(prev => ({ ...prev, organization_name: e.target.value }))}
                       placeholder="Inserisci il nome della tua organizzazione sportiva"
+                      required
                     />
                   </div>
                   
                   <div>
                     <Label htmlFor="organization_logo">Logo/Immagine Organizzazione (Opzionale)</Label>
-                    <Input
-                      id="organization_logo"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleLogoUpload}
-                      className="cursor-pointer"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Formati supportati: JPG, PNG, SVG. Dimensione massima: 5MB
-                    </p>
+                    
+                    {/* File Upload Input */}
+                    <div className="mt-2">
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          ref={fileInputRef}
+                          id="organization_logo"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          className="cursor-pointer flex-1 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                          disabled={uploadStatus.loading}
+                          onError={(e) => {
+                            console.error('File input error:', e)
+                            setUploadStatus({
+                              loading: false,
+                              error: "Errore con l'input file. Riprova.",
+                              success: false
+                            })
+                          }}
+                          onClick={() => {
+                            console.log('File input clicked')
+                            console.log('File input ref current:', fileInputRef.current)
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            console.log('Browse button clicked')
+                            console.log('File input ref current:', fileInputRef.current)
+                            if (fileInputRef.current) {
+                              console.log('Triggering file input click')
+                              fileInputRef.current.click()
+                            } else {
+                              console.log('File input ref is null')
+                            }
+                          }}
+                          disabled={uploadStatus.loading}
+                        >
+                          <Upload className="w-4 h-4 mr-1" />
+                          Sfoglia
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Formati supportati: JPG, PNG, SVG. Dimensione massima: 5MB
+                      </p>
+                      
+                      {/* Debug info */}
+                      <div className="mt-2 text-xs text-gray-400">
+                        <p>Stato upload: {uploadStatus.loading ? 'Caricamento...' : uploadStatus.error ? 'Errore' : uploadStatus.success ? 'Successo' : 'Pronto'}</p>
+                        <p>File selezionato: {selectedFile ? selectedFile.name : 'Nessuno'}</p>
+                        <p>Preview URL: {previewUrl ? `${previewUrl.substring(0, 50)}...` : 'Nessuno'}</p>
+                        <p>File input ref: {fileInputRef.current ? 'Disponibile' : 'Non disponibile'}</p>
+                      </div>
+                    </div>
+
+                    {/* Preview and Status */}
+                    {previewUrl && (
+                      <div className="mt-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                        <div className="flex items-center gap-3">
+                          <div className="w-16 h-16 border border-gray-300 rounded-lg overflow-hidden bg-white flex items-center justify-center">
+                            {previewUrl.startsWith('data:image') ? (
+                              <img 
+                                src={previewUrl} 
+                                alt="Logo preview" 
+                                className="w-full h-full object-contain"
+                              />
+                            ) : (
+                              <FileImage className="w-8 h-8 text-gray-400" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-700">
+                              {selectedFile ? selectedFile.name : "Logo caricato"}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {selectedFile ? `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB` : "File esistente"}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={removeLogo}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Upload Status Messages */}
+                    {uploadStatus.error && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                        {uploadStatus.error}
+                      </div>
+                    )}
+                    
+                    {uploadStatus.success && (
+                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                        Modifiche salvate con successo!
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex gap-3 pt-4">
                   <Button
                     type="submit"
-                    disabled={false} // Removed loading state
+                    disabled={uploadStatus.loading || !formData.organization_name.trim()}
                     className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    Salva Modifiche
+                    {uploadStatus.loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                        Salvataggio...
+                      </>
+                    ) : (
+                      "Salva Modifiche"
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={resetForm}
+                    className="flex-1"
+                    disabled={uploadStatus.loading}
+                  >
+                    Reset
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     onClick={onClose}
                     className="flex-1"
+                    disabled={uploadStatus.loading}
                   >
                     Annulla
                   </Button>

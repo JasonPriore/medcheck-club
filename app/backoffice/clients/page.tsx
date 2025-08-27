@@ -416,9 +416,18 @@ export default function BackofficeClientsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPlanColor(client.subscription_plan)}`}>
-                        {getPlanText(client.subscription_plan)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          client.subscription_plan === 'plus' ? 'bg-green-100 text-green-800' :
+                          client.subscription_plan === 'custom' ? 'bg-purple-100 text-purple-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {client.subscription_plan.toUpperCase()}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          v{client.subscription_version || '1.0'}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       €{client.subscription_price}

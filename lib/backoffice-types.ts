@@ -15,6 +15,7 @@ export interface Client {
   organization_name: string
   organization_logo?: string
   subscription_plan: 'base' | 'plus' | 'custom'
+  subscription_version: string
   subscription_start_date: string
   subscription_end_date: string
   subscription_price: number
@@ -114,4 +115,75 @@ export interface DashboardMetrics {
     average_teams_per_client: number
     average_players_per_client: number
   }
+}
+
+// Nuovi tipi per la gestione dei piani abbonamento
+export interface SubscriptionPlanVersion {
+  id: string
+  plan_id: string
+  version: string
+  display_name: string
+  description: string
+  base_price: number
+  teams_limit: number
+  players_limit: number
+  features: string[]
+  is_active: boolean
+  custom_pricing_enabled: boolean
+  created_at: string
+  created_by: string
+  notes?: string
+  is_current: boolean
+}
+
+export interface SubscriptionPlanTemplate {
+  id: string
+  name: string
+  display_name: string
+  description: string
+  base_price: number
+  teams_limit: number
+  players_limit: number
+  features: string[]
+  is_active: boolean
+  custom_pricing_enabled: boolean
+  versions: SubscriptionPlanVersion[]
+  current_version: string
+  total_clients: number
+  monthly_revenue: number
+  created_at: string
+  updated_at: string
+}
+
+export interface PlanAnalytics {
+  plan_id: string
+  plan_name: string
+  total_clients: number
+  active_clients: number
+  monthly_revenue: number
+  churn_rate: number
+  growth_rate: number
+  average_contract_value: number
+  client_distribution: {
+    new: number
+    active: number
+    churned: number
+  }
+  revenue_trend: {
+    month: string
+    revenue: number
+    clients: number
+  }[]
+}
+
+export interface PlanCreationData {
+  name: string
+  display_name: string
+  description: string
+  base_price: number
+  teams_limit: number
+  players_limit: number
+  features: string[]
+  custom_pricing_enabled: boolean
+  notes?: string
 }

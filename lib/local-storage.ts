@@ -39,6 +39,7 @@ const DEMO_USERS: User[] = [
     id: 'demo-user-1', 
     email: 'demo@medcheckclub.com',
     organization_name: 'MedCheck Club Demo',
+    organization_logo: '', // Initialize empty logo field
     subscription_plan: 'plus',
     subscription_start_date: '2024-01-01T00:00:00Z',
     subscription_end_date: '2024-12-31T23:59:59Z',
@@ -395,6 +396,7 @@ export function initializeDemoData() {
         return {
           ...user,
           organization_name: user.organization_name || 'Nuovo Club',
+          organization_logo: user.organization_logo || '', // Ensure logo is initialized
           subscription_plan: 'base',
           subscription_start_date: user.subscription_start_date || new Date().toISOString(),
           subscription_end_date: user.subscription_end_date || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
@@ -446,6 +448,7 @@ export function signUp(email: string, password: string): Promise<{ user: User | 
           id: `user-${Date.now()}`,
           email,
           organization_name: 'Nuovo Club',
+          organization_logo: '', // Initialize empty logo field
           subscription_plan: 'base',
           subscription_start_date: new Date().toISOString(),
           subscription_end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
@@ -730,20 +733,34 @@ export function updateUserOrganization(userId: string, updates: Partial<User>): 
   return new Promise((resolve) => {
     setTimeout(() => {
       try {
+        console.log('Updating user organization:', { userId, updates })
+        
         const users = JSON.parse(localStorage.getItem('medcheck_users') || '[]')
         const userIndex = users.findIndex((u: User) => u.id === userId)
+        
         if (userIndex !== -1) {
+          const oldUser = users[userIndex]
+          console.log('Old user data:', oldUser)
+          
           users[userIndex] = { ...users[userIndex], ...updates }
+          console.log('New user data:', users[userIndex])
+          
           localStorage.setItem('medcheck_users', JSON.stringify(users))
           
           // Update current user if it's the same user
           const currentUser = getCurrentUser()
           if (currentUser && currentUser.id === userId) {
             localStorage.setItem('medcheck_current_user', JSON.stringify(users[userIndex]))
+            console.log('Updated current user in localStorage')
           }
+          
+          resolve({ error: null })
+        } else {
+          console.error('User not found:', userId)
+          resolve({ error: 'User not found' })
         }
-        resolve({ error: null })
       } catch (error) {
+        console.error('Error updating user organization:', error)
         resolve({ error: 'Error updating user organization' })
       }
     }, 100)
