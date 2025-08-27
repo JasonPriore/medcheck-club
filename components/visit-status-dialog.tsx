@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -40,11 +40,6 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
 
-  // Debug: Check if file input ref is properly initialized
-  useEffect(() => {
-    console.log('VisitStatusDialog mounted, fileInputRef:', fileInputRef.current)
-  }, [])
-
   if (!player) return null
 
   const formatDate = (dateString: string) => {
@@ -77,42 +72,24 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
   }
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('handleFileUpload called with event:', event)
-    console.log('Event target:', event.target)
-    console.log('Event target files:', event.target.files)
-    
     const file = event.target.files?.[0]
-    console.log('File selected:', file)
     
     if (!file) {
-      console.log('No file selected')
       return
     }
 
-    console.log('File details:', {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      lastModified: file.lastModified
-    })
-
     const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/jpg"]
-    console.log('Allowed types:', allowedTypes)
-    console.log('File type check:', allowedTypes.includes(file.type))
     
     if (!allowedTypes.includes(file.type)) {
-      console.log('File type not allowed')
       alert("Formato file non supportato. Carica solo PDF o immagini (JPG, PNG).")
       return
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      console.log('File too large')
       alert("Il file è troppo grande. Dimensione massima: 10MB.")
       return
     }
 
-    console.log('File validation passed, starting upload process')
     setUploadLoading(true)
     setUploadProgress(0)
     setUploadedFile({ name: file.name, type: file.type })
@@ -406,39 +383,12 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
                                   type="button" 
                                   className="bg-blue-600 hover:bg-blue-700 text-white text-sm sm:text-base"
                                   onClick={() => {
-                                    console.log('Seleziona File button clicked')
-                                    console.log('File input ref:', fileInputRef.current)
                                     if (fileInputRef.current) {
-                                      console.log('Triggering file input click')
                                       fileInputRef.current.click()
-                                    } else {
-                                      console.log('File input ref is null')
                                     }
                                   }}
                                 >
                                   Seleziona File
-                                </Button>
-                                
-                                {/* Debug button for testing */}
-                                <Button 
-                                  type="button" 
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-xs"
-                                  onClick={() => {
-                                    console.log('=== DEBUG INFO ===')
-                                    console.log('File input ref:', fileInputRef.current)
-                                    console.log('File input element:', document.getElementById('file-upload'))
-                                    console.log('Current state:', {
-                                      uploadLoading,
-                                      uploadProgress,
-                                      uploadedFile,
-                                      isUploadComplete,
-                                      localFileData
-                                    })
-                                  }}
-                                >
-                                  Debug Info
                                 </Button>
                                 
                                 <input
@@ -448,9 +398,6 @@ export function VisitStatusDialog({ player, isOpen, onClose, onUpdatePlayer }: V
                                   onChange={handleFileUpload}
                                   className="hidden"
                                   ref={fileInputRef}
-                                  onClick={(e) => {
-                                    console.log('File input clicked')
-                                  }}
                                 />
                               </div>
                             </div>
